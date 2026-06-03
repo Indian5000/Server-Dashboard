@@ -2,10 +2,13 @@ const API_BASE = (window.API_BASE || "http://localhost:8000").replace(/\/$/, "")
 const ENDPOINT = `${API_BASE}/server/system`;
 const REFRESH_INTERVAL_MS = 2000;
 
-const el = (id) => document.getElementById(id);
+const el = (id) => document.getElementById(id) || { textContent: '', style: {}, classList: { remove: () => {}, add: () => {} } };
 const nodes = {
   cpuValue: el("cpuValue"),
   cpuBar: el("cpuBar"),
+  cpuTempValue: el("cpuTempValue"),
+  cpuTempBar: el("cpuTempBar"),
+  cpuIcon: el("cpuIcon"),
   memoryValue: el("memoryValue"),
   memoryBar: el("memoryBar"),
   swapValue: el("swapValue"),
@@ -89,6 +92,17 @@ function overallCopy(cpu, memory, disk) {
   return ["System healthy", "Resource usage is currently within a comfortable range."];
 }
 
+function updateCpuHeat(load, temp) {
+  const icon = nodes.cpuIcon;
+  icon.classList.remove('heat-1','heat-2','heat-3','heat-4');
+  const score = (temp !== null && temp !== undefined)
+    ? (load * 0.5 + (temp/100)*100*0.5)
+    : load;
+  if (score>=90) icon.classList.add('heat-4');
+  else if(score>=75) icon.classList.add('heat-3');
+  else if(score>=40) icon.classList.add('heat-1');
+}
+
 async function fetchSystemInfo() {
   if (inFlight) inFlight.abort();
   inFlight = new AbortController();
@@ -110,6 +124,10 @@ async function fetchSystemInfo() {
     const data = await response.json();
 
     setMetric(nodes.cpuValue, nodes.cpuBar, data.cpu);
+    const temp=data.cpu_temp ?? null;
+    nodes.cpuTempValue.textContent=temp !== null ? `${Math.round(temp)}°C` : 'N/A';
+    setProgress(nodes.cpuTempBar, temp !== null ? (temp/100) * 100 : null);
+    updateCpuHeat(data.cpu,temp);
     setMetric(nodes.memoryValue, nodes.memoryBar, data.memory);
     setMetric(nodes.swapValue, nodes.swapBar, data.swap);
     setMetric(nodes.diskValue, nodes.diskBar, data.disk);

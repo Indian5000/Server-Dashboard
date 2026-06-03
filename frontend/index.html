@@ -34,113 +34,85 @@
     <!-- ── Dashboard ── -->
     <main class="dashboard">
 
-        <!-- Row 1 · Core metrics -->
-        <section class="grid-row row--primary">
-
-            <div class="card">
-                <div class="card__header">
-                    <span class="card__label">CPU</span>
-                    <svg class="card__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                        <rect x="4" y="4" width="16" height="16" rx="2"/>
-                        <path d="M9 9h6v6H9z"/>
-                        <path d="M9 1v3M15 1v3M9 20v3M15 20v3M1 9h3M1 15h3M20 9h3M20 15h3"/>
-                    </svg>
+        <!--Cpu Card-->
+        <div class="hcard" id="card-cpu">
+            <div class="hcard__icon-col">
+                <svg class="hcard__icon" id="cpuIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <rect x="4" y="4" width="16" height="16" rx="2"/>
+                    <path d="M9 9h6v6H9z"/>
+                    <path d="M9 1v3M15 1v3M15 1v3M9 20v3M15 20v3M1 9h3M1 15h3M20 9h3M20 15h3"/> <!--Ai Generated-->
+                </svg>
+                <span class="hcard__title">CPU</span>
+            </div>
+            <div class="hcard__metrics">
+                <div class="hcard__row">
+                    <span class="hcard__label">LOAD</span>
+                    <div class="hcard__bar-wrap">
+                        <div class="hcard__bar" id="cpuBar"></div>
+                    </div>
+                    <span class="hcard__val" id="cpuValue">—</span>
                 </div>
-                <div class="card__value" id="cpuValue">—</div>
-                <div class="card__bar-wrap"><div class="card__bar" id="cpuBar"></div></div>
-                <div class="card__sub">processor load</div>
-            </div>
-
-            <div class="card">
-                <div class="card__header">
-                    <span class="card__label">MEMORY</span>
-                    <svg class="card__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                        <rect x="2" y="8" width="20" height="8" rx="1"/>
-                        <path d="M6 8V6M10 8V6M14 8V6M18 8V6M6 16v2M10 16v2M14 16v2M18 16v2"/>
-                    </svg>
+                <div class="hcard__row">
+                    <span class="hcard__label">TEMP</span>
+                    <div class="hcard__bar-wrap">
+                        <div class="hcard__bar" id="cpuTempBar"></div>
+                    </div>
+                    <span class="hcard__val" id="cpuTempValue">—</span>
                 </div>
-                <div class="card__value" id="memoryValue">—</div>
-                <div class="card__bar-wrap"><div class="card__bar" id="memoryBar"></div></div>
-                <div class="card__sub">RAM usage</div>
             </div>
-
-            <div class="card">
-                <div class="card__header">
-                    <span class="card__label">SWAP</span>
-                    <svg class="card__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                        <path d="M7 16V4m0 0L3 8m4-4l4 4M17 8v12m0 0l4-4m-4 4l-4-4"/>
-                    </svg>
+        </div>
+        <!--Memory Card-->
+        <div class="hcard" id="card-mem">
+            <div class="hcard__icon-col">
+                <svg class="hcard__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <rect x="2" y="8" width="20" height="8" rx="1"/>
+                    <path d="M6 8V6M10 8V6M14 8V6M18 8V6M6 16v2M10 16v2M14 16v2M18 16v2"/> <!--Ai generated-->
+                </svg>
+                <span class="hcard__title">MEM</span>
+            </div>
+            <div class="hcard__metrics">
+                <div class="hcard__row">
+                    <span class="hcard__label">RAM</span>
+                    <div class="hcard__bar-wrap">
+                        <div class="hcard__bar" id="memoryBar"></div>
+                    </div>
+                    <span class="hcard__val" id="memoryValue">—</span>
                 </div>
-                <div class="card__value" id="swapValue">—</div>
-                <div class="card__bar-wrap"><div class="card__bar" id="swapBar"></div></div>
-                <div class="card__sub">swap usage</div>
-            </div>
-
-            <div class="card">
-                <div class="card__header">
-                    <span class="card__label">DISK</span>
-                    <svg class="card__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                        <ellipse cx="12" cy="5" rx="9" ry="3"/>
-                        <path d="M3 5v14a9 3 0 0018 0V5"/>
-                        <circle cx="12" cy="19" r="1" fill="currentColor"/>
-                    </svg>
+                <div class="hcard__row">
+                    <span class="hcard__label">SWAP</span>
+                    <div class="hcard__bar-wrap">
+                        <div class="hcard__bar" id="swapBar"></div>
+                    </div>
+                    <span class="hcard__val" id="swapValue">—</span>
                 </div>
-                <div class="card__value" id="diskValue">—</div>
-                <div class="card__bar-wrap"><div class="card__bar" id="diskBar"></div></div>
-                <div class="card__sub">/ partition</div>
             </div>
-
-        </section>
-
-        <!-- Row 2 · Network · Uptime · Battery -->
-        <section class="grid-row row--secondary">
-
-            <div class="card card--network">
-                <div class="card__header">
-                    <span class="card__label">NETWORK</span>
-                    <svg class="card__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                        <path d="M1.5 8.5C6.5 3.5 17.5 3.5 22.5 8.5M5 12c3.5-3 11-3 14 0M9 15.5c1.5-1.5 5.5-1.5 6 0M12 19h.01"/>
-                    </svg>
+        </div>
+        <!--Disk Card-->
+        <div class="hcard" id="card-mem">
+            <div class="hcard__icon-col">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-hdd" viewBox="0 0 16 16">
+                    <path d="M4.5 11a.5.5 0 1 0 0-1 .5.5 0 0 0 0 1M3 10.5a.5.5 0 1 1-1 0 .5.5 0 0 1 1 0"/>
+                    <path d="M16 11a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V9.51c0-.418.105-.83.305-1.197l2.472-4.531A1.5 1.5 0 0 1 4.094 3h7.812a1.5 1.5 0 0 1 1.317.782l2.472 4.53c.2.368.305.78.305 1.198zM3.655 4.26 1.592 8.043Q1.79 8 2 8h12q.21 0 .408.042L12.345 4.26a.5.5 0 0 0-.439-.26H4.094a.5.5 0 0 0-.44.26zM1 10v1a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-1a1 1 0 0 0-1-1H2a1 1 0 0 0-1 1"/>
+                </svg>
+                <span class="hcard__title">DISK</span>
+            </div>
+            <div class="hcard__metrics">
+                <div class="hcard__row">
+                    <span class="hcard__label">USAGE</span>
+                    <div class="hcard__bar-wrap">
+                        <div class="hcard__bar" id="DiskUsageBar"></div>
+                    </div>
+                    <span class="hcard__val" id="DiskUsageValue">—</span>
                 </div>
-                <div class="card__value card__value--network" id="networkValue">—</div>
-                <div class="card__sub" id="networkNote">waiting for data…</div>
-            </div>
-
-            <div class="card">
-                <div class="card__header">
-                    <span class="card__label">UPTIME</span>
-                    <svg class="card__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                        <circle cx="12" cy="12" r="9"/>
-                        <path d="M12 7v5l3 3"/>
-                    </svg>
+                <div class="hcard__row">
+                    <span class="hcard__label">TEMP</span>
+                    <div class="hcard__bar-wrap">
+                        <div class="hcard__bar" id="DiskTempBar"></div>
+                    </div>
+                    <span class="hcard__val" id="DiskTempValue">—</span>
                 </div>
-                <div class="card__value card__value--uptime" id="uptimeValue">—</div>
-                <div class="card__sub">since last boot</div>
             </div>
-
-            <div class="card">
-                <div class="card__header">
-                    <span class="card__label">BATTERY</span>
-                    <svg class="card__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                        <rect x="2" y="7" width="18" height="11" rx="2"/>
-                        <path d="M20 11h2v3h-2"/>
-                    </svg>
-                </div>
-                <div class="card__value card__value--battery" id="batteryValue">—</div>
-                <div class="card__sub" id="batteryNote">waiting for data…</div>
-            </div>
-
-        </section>
-
-        <!-- Row 3 · Overall status -->
-        <section class="status-banner">
-            <div class="status-banner__icon" aria-hidden="true">◈</div>
-            <div class="status-banner__body">
-                <p class="status-banner__state" id="overallState">Connecting to backend…</p>
-                <p class="status-banner__hint"  id="overallHint">Waiting for first response.</p>
-            </div>
-        </section>
-
+        </div>
     </main>
 
     <!-- ── Footer ── -->
