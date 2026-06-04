@@ -27,11 +27,26 @@ const nodes = {
   refreshBtn: el("refreshBtn"),
   endpointValue: el("endpointValue"),
 };
+function showBiscuit(message,level,time) {
 
+}
 nodes.endpointValue.textContent = ENDPOINT;
 
 let inFlight = null;
+const drawer = document.getElementById("drawer");
+const menuBtn = document.getElementById("menuBtn");
+const backdrop = document.getElementById("drawerBackdrop");
 
+menuBtn.addEventListener("click", () => {
+    drawer.classList.toggle("drawer--open");
+    menuBtn.classList.toggle("active");
+    backdrop.classList.toggle("drawer-backdrop--visible");
+});
+backdrop.addEventListener("click", () => {
+    drawer.classList.remove("drawer--open");
+    backdrop.classList.remove("drawer-backdrop--visible");
+    menuBtn.classList.remove("active");
+});
 function clampPercent(value) {
   const num = Number(value);
   if (!Number.isFinite(num)) return null;
@@ -47,14 +62,14 @@ function formatBattery(value) {
 function setProgress(bar, value) {
   const pct = clampPercent(value);
   bar.style.width = pct === null ? "0%" : `${pct}%`;
+  bar.classList.remove("bar--ok", "bar--warn", "bar--crit", "bar--null");
   if (pct === null) {
-    bar.style.background = "linear-gradient(90deg, #64748b, #94a3b8)";
   } else if (pct >= 85) {
-    bar.style.background = "linear-gradient(90deg, #ef4444, #f97316)";
+    bar.classList.add("bar--crit")
   } else if (pct >= 60) {
-    bar.style.background = "linear-gradient(90deg, #f59e0b, #facc15)";
+    bar.classList.add("bar--warn")
   } else {
-    bar.style.background = "linear-gradient(90deg, #60a5fa, #34d399)";
+    bar.classList.add("bar--ok")
   }
 }
 
@@ -75,7 +90,7 @@ function prettyUpdatedAt(date = new Date()) {
 function updateStatus(state, message) {
   nodes.connectionStatus.classList.remove("status-loading", "status-online", "status-offline");
   nodes.connectionStatus.classList.add(`status-${state}`);
-  nodes.connectionStatus.textContent = message;
+  nodes.connectionStatus.querySelector(".status-pill__text").textContent = message;
 }
 
 function networkText(network) {
