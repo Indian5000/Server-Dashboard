@@ -1,14 +1,17 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SysPulse — Server Dashboard</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Syne:wght@400;600;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Syne:wght@400;600;800&display=swap"
+        rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
+
 <body>
 
     <div class="bg-grid" aria-hidden="true"></div>
@@ -19,9 +22,12 @@
         <div class="topbar__left">
             <button class="hamburger-btn" id="menuBtn" aria-label="Open menu">
                 <svg viewBox="0 0 24 24">
-                    <line class="line line1" x1="3" y1="6" x2="21" y2="6" stroke="currentColor" stroke-width="2" stroke-linecap="round"></line>
-                    <line class="line line2" x1="3" y1="12" x2="21" y2="12" stroke="currentColor" stroke-width="2" stroke-linecap="round"></line>
-                    <line class="line line3" x1="3" y1="18" x2="21" y2="18" stroke="currentColor" stroke-width="2" stroke-linecap="round"></line>
+                    <line class="line line1" x1="3" y1="6" x2="21" y2="6" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round"></line>
+                    <line class="line line2" x1="3" y1="12" x2="21" y2="12" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round"></line>
+                    <line class="line line3" x1="3" y1="18" x2="21" y2="18" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round"></line>
                 </svg>
             </button>
             <span class="topbar__logo">SYS<span class="accent">PULSE</span></span>
@@ -37,35 +43,71 @@
             <button class="refresh-btn" id="refreshBtn" title="Refresh now">↺</button>
         </div>
     </header>
-<aside class="drawer" id="drawer">
-  <nav class="drawer__nav">
-    <button class="drawer__btn"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-container-icon lucide-container"><path d="M22 7.7c0-.6-.4-1.2-.8-1.5l-6.3-3.9a1.72 1.72 0 0 0-1.7 0l-10.3 6c-.5.2-.9.8-.9 1.4v6.6c0 .5.4 1.2.8 1.5l6.3 3.9a1.72 1.72 0 0 0 1.7 0l10.3-6c.5-.3.9-1 .9-1.5Z"/><path d="M10 21.9V14L2.1 9.1"/><path d="m10 14 11.9-6.9"/><path d="M14 19.8v-8.1"/><path d="M18 17.5V9.4"/></svg>    Docker Management</button>
-    <button class="drawer__btn"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-clipboard-clock-icon lucide-clipboard-clock"><path d="M16 14v2.2l1.6 1"/><path d="M16 4h2a2 2 0 0 1 2 2v.832"/><path d="M8 4H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h2"/><circle cx="16" cy="16" r="6"/><rect x="8" y="2" width="8" height="4" rx="1"/></svg>    Log Review</button>
-    <button class="drawer__btn"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-terminal-icon lucide-terminal"><path d="M12 19h8"/><path d="m4 17 6-6-6-6"/></svg>    SSH Terminal</button>
-    <button class="drawer__btn"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-folder-bookmark-icon lucide-folder-bookmark"><path d="M12 6v8l3-3 3 3V6"/><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2z"/></svg>    File Manager</button>
-  </nav>
-  <div>
-    <div class="drawer__divider"></div>
-    <div class="drawer__account">
-        <div class="drawer__avatar">A</div>
-        <div class="drawer__userinfo">
-            <span class="drawer__username">Dummy</span>
-            <span class="drawer__usersub">Dummy User</span>
-        </div>
-    <button class="drawer__signout" id="signoutBtn"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-log-out-icon lucide-log-out"><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/></svg></button>
-  </div>
-</aside>
-<div class="drawer-backdrop" id="drawerBackdrop"></div>
+    <aside class="drawer" id="drawer">
+        <nav class="drawer__nav">
+            <button class="drawer__btn"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                    viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                    stroke-linejoin="round" class="lucide lucide-container-icon lucide-container">
+                    <path
+                        d="M22 7.7c0-.6-.4-1.2-.8-1.5l-6.3-3.9a1.72 1.72 0 0 0-1.7 0l-10.3 6c-.5.2-.9.8-.9 1.4v6.6c0 .5.4 1.2.8 1.5l6.3 3.9a1.72 1.72 0 0 0 1.7 0l10.3-6c.5-.3.9-1 .9-1.5Z" />
+                    <path d="M10 21.9V14L2.1 9.1" />
+                    <path d="m10 14 11.9-6.9" />
+                    <path d="M14 19.8v-8.1" />
+                    <path d="M18 17.5V9.4" />
+                </svg> Docker Management</button>
+            <button class="drawer__btn"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                    viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                    stroke-linejoin="round" class="lucide lucide-clipboard-clock-icon lucide-clipboard-clock">
+                    <path d="M16 14v2.2l1.6 1" />
+                    <path d="M16 4h2a2 2 0 0 1 2 2v.832" />
+                    <path d="M8 4H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h2" />
+                    <circle cx="16" cy="16" r="6" />
+                    <rect x="8" y="2" width="8" height="4" rx="1" />
+                </svg> Log Review</button>
+            <button class="drawer__btn"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                    viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                    stroke-linejoin="round" class="lucide lucide-terminal-icon lucide-terminal">
+                    <path d="M12 19h8" />
+                    <path d="m4 17 6-6-6-6" />
+                </svg> SSH Terminal</button>
+            <button class="drawer__btn"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                    viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                    stroke-linejoin="round" class="lucide lucide-folder-bookmark-icon lucide-folder-bookmark">
+                    <path d="M12 6v8l3-3 3 3V6" />
+                    <path
+                        d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2z" />
+                </svg> File Manager</button>
+        </nav>
+        <div>
+            <div class="drawer__divider"></div>
+            <div class="drawer__account">
+                <div class="drawer__avatar">A</div>
+                <div class="drawer__userinfo">
+                    <span class="drawer__username">Dummy</span>
+                    <span class="drawer__usersub">Dummy User</span>
+                </div>
+                <button class="drawer__signout" id="signoutBtn"><svg xmlns="http://www.w3.org/2000/svg" width="24"
+                        height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round"
+                        class="lucide lucide-log-out-icon lucide-log-out">
+                        <path d="m16 17 5-5-5-5" />
+                        <path d="M21 12H9" />
+                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                    </svg></button>
+            </div>
+    </aside>
+    <div class="drawer-backdrop" id="drawerBackdrop"></div>
     <!-- ── Dashboard ── -->
     <main class="dashboard">
 
         <!--Cpu Card-->
         <div class="hcard" id="card-cpu">
             <div class="hcard__icon-col">
-                <svg class="hcard__icon" id="cpuIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                    <rect x="4" y="4" width="16" height="16" rx="2"/>
-                    <path d="M9 9h6v6H9z"/>
-                    <path d="M9 1v3M15 1v3M15 1v3M9 20v3M15 20v3M1 9h3M1 15h3M20 9h3M20 15h3"/> <!--Ai Generated-->
+                <svg class="hcard__icon" id="cpuIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                    stroke-width="1.5">
+                    <rect x="4" y="4" width="16" height="16" rx="2" />
+                    <path d="M9 9h6v6H9z" />
+                    <path d="M9 1v3M15 1v3M15 1v3M9 20v3M15 20v3M1 9h3M1 15h3M20 9h3M20 15h3" /> <!--Ai Generated-->
                 </svg>
                 <span class="hcard__title">CPU</span>
             </div>
@@ -90,8 +132,8 @@
         <div class="hcard" id="card-mem">
             <div class="hcard__icon-col">
                 <svg class="hcard__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                    <rect x="2" y="8" width="20" height="8" rx="1"/>
-                    <path d="M6 8V6M10 8V6M14 8V6M18 8V6M6 16v2M10 16v2M14 16v2M18 16v2"/> <!--Ai generated-->
+                    <rect x="2" y="8" width="20" height="8" rx="1" />
+                    <path d="M6 8V6M10 8V6M14 8V6M18 8V6M6 16v2M10 16v2M14 16v2M18 16v2" /> <!--Ai generated-->
                 </svg>
                 <span class="hcard__title">MEM</span>
             </div>
@@ -113,36 +155,25 @@
             </div>
         </div>
         <!--Disk Card-->
-        <div class="hcard" id="card-mem">
+        <div class="hcard" id="card-disk">
             <div class="hcard__icon-col">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-hdd" viewBox="0 0 16 16">
-                    <path d="M4.5 11a.5.5 0 1 0 0-1 .5.5 0 0 0 0 1M3 10.5a.5.5 0 1 1-1 0 .5.5 0 0 1 1 0"/>
-                    <path d="M16 11a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V9.51c0-.418.105-.83.305-1.197l2.472-4.531A1.5 1.5 0 0 1 4.094 3h7.812a1.5 1.5 0 0 1 1.317.782l2.472 4.53c.2.368.305.78.305 1.198zM3.655 4.26 1.592 8.043Q1.79 8 2 8h12q.21 0 .408.042L12.345 4.26a.5.5 0 0 0-.439-.26H4.094a.5.5 0 0 0-.44.26zM1 10v1a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-1a1 1 0 0 0-1-1H2a1 1 0 0 0-1 1"/>
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-hdd"
+                    viewBox="0 0 16 16">
+                    <path d="M4.5 11a.5.5 0 1 0 0-1 .5.5 0 0 0 0 1M3 10.5a.5.5 0 1 1-1 0 .5.5 0 0 1 1 0" />
+                    <path
+                        d="M16 11a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V9.51c0-.418.105-.83.305-1.197l2.472-4.531A1.5 1.5 0 0 1 4.094 3h7.812a1.5 1.5 0 0 1 1.317.782l2.472 4.53c.2.368.305.78.305 1.198zM3.655 4.26 1.592 8.043Q1.79 8 2 8h12q.21 0 .408.042L12.345 4.26a.5.5 0 0 0-.439-.26H4.094a.5.5 0 0 0-.44.26zM1 10v1a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-1a1 1 0 0 0-1-1H2a1 1 0 0 0-1 1" />
                 </svg>
                 <span class="hcard__title">DISK</span>
             </div>
-            <div class="hcard__metrics">
-                <div class="hcard__row">
-                    <span class="hcard__label">USAGE</span>
-                    <div class="hcard__bar-wrap">
-                        <div class="hcard__bar" id="DiskUsageBar"></div>
-                    </div>
-                    <span class="hcard__val" id="DiskUsageValue">—</span>
-                </div>
-                <div class="hcard__row">
-                    <span class="hcard__label">TEMP</span>
-                    <div class="hcard__bar-wrap">
-                        <div class="hcard__bar" id="DiskTempBar"></div>
-                    </div>
-                    <span class="hcard__val" id="DiskTempValue">—</span>
-                </div>
+            <div class="hcard__metrics" id="diskMetricsContainer"
+                style="display: flex; flex-direction: column; gap: 1.5rem; padding: 1.4rem;">
             </div>
         </div>
     </main>
-<div class="toastBiscuit">
-    <div class="toast__icon"></div>
-    <div class="toast__content"></div>
-</div>
+    <div class="toastBiscuit">
+        <div class="toast__icon"></div>
+        <div class="toast__content"></div>
+    </div>
     <!-- ── Footer ── -->
     <footer class="footer">
         <span class="footer__label">ENDPOINT</span>
@@ -151,4 +182,5 @@
 
     <script src="script.js"></script>
 </body>
+
 </html>

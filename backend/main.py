@@ -15,6 +15,7 @@ app.add_middleware(
 )
 
 last_network = psutil.net_io_counters()
+last_disk_io = psutil.disk_io_counters(perdisk=True) or {}
 last_time = time.time()
 
 
@@ -30,54 +31,53 @@ def format_speed(value):
         value /= 1024
 
     return f"{round(value, 2)} TB/s"
+def get_disk_health(device_name):
+    # Stub for SMART data
+    return "OK"
+
 @app.get("/server/system")
 def systeminfo():
+    global last_network
+    global last_disk_io
+    global last_time
+
+    current_time = time.time()
+    elapsed = current_time - last_time
+
+    # CPU & Mem
     cpu = psutil.cpu_percent(interval=1)
     memory = psutil.virtual_memory().percent
     swap_mem = psutil.swap_memory().percent
-    disk = [d for d in os.listdir("/sys/block") 
-            if not d.startswith("loop")]
-    network = (psutil.net_io_counters().bytes_sent+ psutil.net_io_counters().bytes_recv)
-    uptime_hr = (time.time() - psutil.boot_time()) // 3600
-    uptime_min = ((time.time() - psutil.boot_time())% 3600) // 60
-    battery = psutil.sensors_battery()
-    battery_percent = (battery.percent if battery else None)
-    cpu_temp = None
-    disk_max = None
-    temps = psutil.sensors_temperatures()
-    global last_network
-    global last_time
 
+    # Network
     current_network = psutil.net_io_counters()
-    current_time = time.time()
+    upload_speed = (current_network.bytes_sent - last_network.bytes_sent) / elapsed
+    download_speed = (current_network.bytes_recv - last_network.bytes_recv) / elapsed
+    last_network = current_network
+
+    # Temps
+    temps = psutil.sensors_temperatures()
+    cpu_temp = None
     if "coretemp" in temps:
         for sensor in temps["coretemp"]:
             if sensor.label == "Package id 0":
                 cpu_temp = sensor.current
                 break
-    elapsed = current_time - last_time
 
-    upload_speed = (
-        current_network.bytes_sent
-      - last_network.bytes_sent
-    ) / elapsed
+    
 
-    download_speed = (
-     current_network.bytes_recv
-       - last_network.bytes_recv
-    ) / elapsed
+    # Misc
+    uptime_hr = (time.time() - psutil.boot_time()) // 3600
+    uptime_min = ((time.time() - psutil.boot_time()) % 3600) // 60
+    battery = psutil.sensors_battery()
+    battery_percent = (battery.percent if battery else None)
 
-    last_network = current_network
-    last_time = current_time
     return {
         "cpu": cpu,
         "memory": memory,
         "swap": swap_mem,
-        "disk": disk,
-        "network": {"upload": format_speed(upload_speed), 
-                    "download": format_speed(download_speed)},
-        "uptime":f"{int(uptime_hr)}h {int(uptime_min)}m",
+        "network": {"upload": format_speed(upload_speed), "download": format_speed(download_speed)},
+        "uptime": f"{int(uptime_hr)}h {int(uptime_min)}m",
         "battery": battery_percent,
-        "cpu_temp": cpu_temp,
-        "Diskmax" : None
+        "cpu_temp": cpu_temp
      }
