@@ -658,3 +658,8 @@ Temporary test code to remove after approval:
 
 - [ ] `window.__testBattery()` in `script.js`
 - [ ] `window.__testFans()` in `script.js`
+Main plan:
+- Add Disk Card
+- Add home button in Hamburgeer Menu
+- Add Fan card
+- Add overall health card

@@ -599,7 +599,78 @@ body {
         transform: translateY(0);
     }
 }
+/* Disk Drive Layout */
+.disk-drive {
+    display: flex;
+    flex-direction: column;
+    gap: .75rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--border);
+}
 
+.disk-drive:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+}
+
+.disk-drive__header {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+}
+
+.disk-drive__name {
+    font-family: var(--mono);
+    font-size: .8rem;
+    color: var(--text);
+    font-weight: normal;
+    letter-spacing: .05em;
+}
+
+.disk-drive__health {
+    font-family: var(--mono);
+    font-size: .65rem;
+    color: var(--muted);
+    margin-left: auto;
+}
+
+.disk-drive__stats {
+    font-family: var(--mono);
+    font-size: .65rem;
+    color: var(--muted);
+    text-align: right;
+    margin-top: -0.25rem;
+}
+
+.bar--info {
+    background: linear-gradient(90deg, #60a5fa, #3b82f6);
+}
+
+/*Responsive*/
+@media (max-width: 500px) {
+    :root {
+        --gap: .75rem;
+    }
+
+    .hcard__icon-col {
+        width: 64px;
+        padding: 1rem .5rem;
+    }
+
+    .hcard__icon {
+        width: 28px;
+        height: 28px;
+    }
+
+    .hcard__val {
+        width: 5.5rem;
+        font-size: .72rem;
+    }
+
+    .topbar__updated {
+        display: none;
+    }
+}
 /*Icon Column*/
 .hcard__icon-col {
     display: flex;
@@ -811,75 +882,4 @@ body {
     white-space: nowrap;
 }
 
-/* Disk Drive Layout */
-.disk-drive {
-    display: flex;
-    flex-direction: column;
-    gap: .75rem;
-    padding-bottom: 1rem;
-    border-bottom: 1px solid var(--border);
-}
 
-.disk-drive:last-child {
-    border-bottom: none;
-    padding-bottom: 0;
-}
-
-.disk-drive__header {
-    display: flex;
-    align-items: center;
-    gap: .5rem;
-}
-
-.disk-drive__name {
-    font-family: var(--mono);
-    font-size: .8rem;
-    color: var(--text);
-    font-weight: normal;
-    letter-spacing: .05em;
-}
-
-.disk-drive__health {
-    font-family: var(--mono);
-    font-size: .65rem;
-    color: var(--muted);
-    margin-left: auto;
-}
-
-.disk-drive__stats {
-    font-family: var(--mono);
-    font-size: .65rem;
-    color: var(--muted);
-    text-align: right;
-    margin-top: -0.25rem;
-}
-
-.bar--info {
-    background: linear-gradient(90deg, #60a5fa, #3b82f6);
-}
-
-/*Responsive*/
-@media (max-width: 500px) {
-    :root {
-        --gap: .75rem;
-    }
-
-    .hcard__icon-col {
-        width: 64px;
-        padding: 1rem .5rem;
-    }
-
-    .hcard__icon {
-        width: 28px;
-        height: 28px;
-    }
-
-    .hcard__val {
-        width: 5.5rem;
-        font-size: .72rem;
-    }
-
-    .topbar__updated {
-        display: none;
-    }
-}
