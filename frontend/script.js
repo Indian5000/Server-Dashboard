@@ -181,7 +181,106 @@ function updateCpuHeat(load, temp) {
   else if (score >= 75) icon.classList.add('heat-3');
   else if (score >= 40) icon.classList.add('heat-1');
 }
+/* ── Disk card ── */
+const diskContainer = document.getElementById("diskMetricsContainer");
+const driveEls = new Map();   // drive id -> { root, refs }
+const drivePeaks = new Map(); // drive id -> adaptive max speed (B/s) for the bars
+const MIN_SPEED_SCALE = 1024 * 1024; // 1 MB/s floor so idle noise doesn't fill the bar
 
+function buildDriveEl() {
+  const row = (label, ref, barClass = "") => `
+    <div class="hcard__row">
+      <span class="hcard__label">${label}</span>
+      <div class="hcard__bar-wrap"><div class="hcard__bar ${barClass}" data-ref="${ref}Bar"></div></div>
+      <span class="hcard__val" data-ref="${ref}Val">—</span>
+    </div>`;
+
+  const root = document.createElement("div");
+  root.className = "disk-drive";
+  root.innerHTML = `
+    <div class="disk-drive__header">
+      <span class="disk-drive__name" data-ref="name"></span>
+      <span class="disk-drive__health" data-ref="badge"></span>
+    </div>
+    <div class="disk-drive__sub" data-ref="sub"></div>
+    ${row("USED", "used")}
+    <div class="disk-drive__stats" data-ref="stats"></div>
+    ${row("TEMP", "temp")}
+    ${row("READ", "read", "bar--read")}
+    ${row("WRITE", "write", "bar--write")}
+  `;
+  const refs = {};
+  root.querySelectorAll("[data-ref]").forEach((n) => (refs[n.dataset.ref] = n));
+  return { root, refs };
+}
+
+function setBarClass(bar, cls) {
+  bar.classList.remove("bar--ok", "bar--warn", "bar--crit");
+  bar.classList.add(cls);
+}
+
+function updateDriveEl(r, d) {
+  r.name.textContent = d.name;
+  r.badge.textContent = [d.kind, d.health].filter(Boolean).join(" · ");
+  r.sub.textContent = `${d.id} — ${d.volumes.length ? d.volumes.join(", ") : "no mounted volumes"}`;
+
+  // Storage (whole drive, not per volume)
+  const pct = clampPercent(d.percent) ?? 0;
+  r.usedBar.style.width = `${pct}%`;
+  setBarClass(r.usedBar, pct >= 90 ? "bar--crit" : pct >= 75 ? "bar--warn" : "bar--ok");
+  r.usedVal.textContent = `${Math.round(pct)}%`;
+  r.stats.textContent =
+    `${formatBytes(d.used, 0)} used · ${formatBytes(d.free, 0)} free · ${formatBytes(d.size, 0)} total`;
+
+  // Temperature
+  if (d.temp == null) {
+    r.tempVal.textContent = "N/A";
+    r.tempBar.style.width = "0%";
+  } else {
+    r.tempVal.textContent = `${Math.round(d.temp)}°C`;
+    r.tempBar.style.width = `${Math.min(100, Math.max(0, d.temp))}%`;
+    setBarClass(r.tempBar, d.temp >= 70 ? "bar--crit" : d.temp >= 50 ? "bar--warn" : "bar--ok");
+  }
+
+  // Read / write (bars scale to the busiest recent speed, decaying slowly)
+  const peak = Math.max(
+    MIN_SPEED_SCALE, d.read_speed, d.write_speed, (drivePeaks.get(d.id) || 0) * 0.97
+  );
+  drivePeaks.set(d.id, peak);
+  r.readVal.textContent = `${formatBytes(d.read_speed)}/s`;
+  r.writeVal.textContent = `${formatBytes(d.write_speed)}/s`;
+  r.readBar.style.width = `${Math.min(100, (d.read_speed / peak) * 100)}%`;
+  r.writeBar.style.width = `${Math.min(100, (d.write_speed / peak) * 100)}%`;
+}
+
+function renderDrives(drives) {
+  if (!diskContainer || !Array.isArray(drives)) return;
+  if (drives.length === 0) {
+    diskContainer.textContent = "No drives detected";
+    driveEls.clear();
+    return;
+  }
+  if (driveEls.size === 0) diskContainer.textContent = "";
+
+  const alive = new Set();
+  drives.forEach((d) => {
+    alive.add(d.id);
+    let entry = driveEls.get(d.id);
+    if (!entry) {
+      entry = buildDriveEl();
+      driveEls.set(d.id, entry);
+      diskContainer.appendChild(entry.root);
+    }
+    updateDriveEl(entry.refs, d);
+  });
+  for (const [id, entry] of driveEls) {
+    if (!alive.has(id)) {
+      entry.root.remove();
+      driveEls.delete(id);
+      drivePeaks.delete(id);
+    }
+  }
+}
 async function fetchSystemInfo() {
   if (inFlight) inFlight.abort();
   inFlight = new AbortController();
@@ -210,62 +309,7 @@ async function fetchSystemInfo() {
     setMetric(nodes.memoryValue, nodes.memoryBar, data.memory);
     setMetric(nodes.swapValue, nodes.swapBar, data.swap);
 
-    // Render dynamic disk drives
-    const diskContainer = document.getElementById("diskMetricsContainer");
-    if (diskContainer && data.drives) {
-      diskContainer.innerHTML = '';
-      data.drives.forEach(drive => {
-        const tempStr = drive.temp !== null ? `${Math.round(drive.temp)}°C` : 'N/A';
-        const tempPct = drive.temp !== null ? Math.min(100, (drive.temp / 100) * 100) : 0;
-        const tempClass = drive.temp >= 75 ? 'bar--crit' : drive.temp >= 50 ? 'bar--warn' : 'bar--ok';
-        const usageClass = drive.percent >= 90 ? 'bar--crit' : drive.percent >= 75 ? 'bar--warn' : 'bar--ok';
-
-        const maxSpeed = 500 * 1024 * 1024; // Visual cap at 500 MB/s
-        const readPct = Math.min(100, (drive.read_speed / maxSpeed) * 100);
-        const writePct = Math.min(100, (drive.write_speed / maxSpeed) * 100);
-
-        const driveHtml = `
-                <div class="disk-drive">
-                    <div class="disk-drive__header">
-                        <span class="disk-drive__name">${drive.device} (${drive.mountpoint})</span>
-                        <span class="status-pill status-${drive.status.toLowerCase()}" style="margin-left: .5rem; padding: .1rem .4rem;">
-                            <span class="status-pill__dot"></span>
-                        </span>
-                        <span class="disk-drive__health">SMART: ${drive.health || 'N/A'}</span>
-                    </div>
-                    
-                    <div class="hcard__row">
-                        <span class="hcard__label">USAGE</span>
-                        <div class="hcard__bar-wrap">
-                            <div class="hcard__bar ${usageClass}" style="width: ${drive.percent}%"></div>
-                        </div>
-                        <span class="hcard__val">${Math.round(drive.percent)}% (${formatBytes(drive.used, 0)}/${formatBytes(drive.total, 0)})</span>
-                    </div>
-                    
-                    <div class="hcard__row">
-                        <span class="hcard__label">TEMP</span>
-                        <div class="hcard__bar-wrap">
-                            <div class="hcard__bar ${tempClass}" style="width: ${tempPct}%"></div>
-                        </div>
-                        <span class="hcard__val">${tempStr}</span>
-                    </div>
-                    
-                    <div class="hcard__row" style="margin-top: .75rem; margin-bottom: .25rem;">
-                        <span class="hcard__label" style="width: auto;">R/W SPEED</span>
-                        <div style="flex: 1;"></div>
-                        <span style="font-family: var(--mono); font-size: .85rem; color: var(--text);">
-                            R: ${formatBytes(drive.read_speed)}/s | W: ${formatBytes(drive.write_speed)}/s
-                        </span>
-                    </div>
-                    
-                    <div class="disk-drive__stats" style="font-size: .8rem; color: var(--text); padding-top: .25rem;">
-                        Total Read: ${formatBytes(drive.total_read)} | Total Write: ${formatBytes(drive.total_write)}
-                    </div>
-                </div>
-            `;
-        diskContainer.insertAdjacentHTML('beforeend', driveHtml);
-      });
-    }
+    renderDrives(data.drives);
 
     nodes.uptimeValue.textContent = data.uptime ?? "—";
     nodes.batteryValue.textContent = formatBattery(data.battery);

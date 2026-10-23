@@ -600,12 +600,11 @@ body {
     }
 }
 /* Disk Drive Layout */
-.disk-drive {
+#disk-drive.hcard{
     display: flex;
-    flex-direction: column;
-    gap: .75rem;
     padding-bottom: 1rem;
     border-bottom: 1px solid var(--border);
+    order: 1;
 }
 
 .disk-drive:last-child {
@@ -882,4 +881,33 @@ body {
     white-space: nowrap;
 }
 
+/* ── Disk card additions ── */
+.disk-drive {
+    display: flex;
+    flex-direction: column;
+    gap: .7rem;
+    padding-bottom: 1.2rem;
+    border-bottom: 1px solid var(--border);
+}
 
+.disk-drive__name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.disk-drive__sub {
+    font-family: var(--mono);
+    font-size: .65rem;
+    color: var(--muted);
+    margin-top: -.45rem;
+}
+
+.hcard__bar.bar--read {
+    background: linear-gradient(90deg, #60a5fa, #3b82f6);
+}
+
+.hcard__bar.bar--write {
+    background: linear-gradient(90deg, var(--accent2), #f59e0b);
+}
