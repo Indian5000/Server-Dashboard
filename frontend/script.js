@@ -182,17 +182,21 @@ function updateCpuHeat(load, temp) {
   else if (score >= 40) icon.classList.add('heat-1');
 }
 /* ── Disk card ── */
+/* ── Disk card ── */
 const diskContainer = document.getElementById("diskMetricsContainer");
-const driveEls = new Map();   // drive id -> { root, refs }
-const drivePeaks = new Map(); // drive id -> adaptive max speed (B/s) for the bars
-const MIN_SPEED_SCALE = 1024 * 1024; // 1 MB/s floor so idle noise doesn't fill the bar
+const driveEls = new Map(); // drive id -> { root, refs }
 
 function buildDriveEl() {
-  const row = (label, ref, barClass = "") => `
+  const bar = (label, ref) => `
     <div class="hcard__row">
       <span class="hcard__label">${label}</span>
-      <div class="hcard__bar-wrap"><div class="hcard__bar ${barClass}" data-ref="${ref}Bar"></div></div>
+      <div class="hcard__bar-wrap"><div class="hcard__bar" data-ref="${ref}Bar"></div></div>
       <span class="hcard__val" data-ref="${ref}Val">—</span>
+    </div>`;
+  const tile = (label, ref, mod = "") => `
+    <div class="disk-tile ${mod}">
+      <span class="disk-tile__label">${label}</span>
+      <span class="disk-tile__value" data-ref="${ref}">—</span>
     </div>`;
 
   const root = document.createElement("div");
@@ -203,11 +207,15 @@ function buildDriveEl() {
       <span class="disk-drive__health" data-ref="badge"></span>
     </div>
     <div class="disk-drive__sub" data-ref="sub"></div>
-    ${row("USED", "used")}
-    <div class="disk-drive__stats" data-ref="stats"></div>
-    ${row("TEMP", "temp")}
-    ${row("READ", "read", "bar--read")}
-    ${row("WRITE", "write", "bar--write")}
+    ${bar("USAGE", "used")}
+    ${bar("TEMP", "temp")}
+    <div class="disk-tiles">
+      ${tile("READ", "read", "disk-tile--wide disk-tile--read")}
+      ${tile("WRITE", "write", "disk-tile--wide disk-tile--write")}
+      ${tile("USED", "usedBytes")}
+      ${tile("FREE", "free")}
+      ${tile("TOTAL", "total")}
+    </div>
   `;
   const refs = {};
   root.querySelectorAll("[data-ref]").forEach((n) => (refs[n.dataset.ref] = n));
@@ -222,17 +230,18 @@ function setBarClass(bar, cls) {
 function updateDriveEl(r, d) {
   r.name.textContent = d.name;
   r.badge.textContent = [d.kind, d.health].filter(Boolean).join(" · ");
-  r.sub.textContent = `${d.id} — ${d.volumes.length ? d.volumes.join(", ") : "no mounted volumes"}`;
 
-  // Storage (whole drive, not per volume)
+  const vols = d.volumes.length ? d.volumes.join(", ") : "no mounted volumes";
+  r.sub.textContent = `${d.id} — ${vols}`;
+  r.sub.title = vols; // full list on hover
+
+  // Usage bar (whole drive)
   const pct = clampPercent(d.percent) ?? 0;
   r.usedBar.style.width = `${pct}%`;
   setBarClass(r.usedBar, pct >= 90 ? "bar--crit" : pct >= 75 ? "bar--warn" : "bar--ok");
   r.usedVal.textContent = `${Math.round(pct)}%`;
-  r.stats.textContent =
-    `${formatBytes(d.used, 0)} used · ${formatBytes(d.free, 0)} free · ${formatBytes(d.size, 0)} total`;
 
-  // Temperature
+  // Temperature bar
   if (d.temp == null) {
     r.tempVal.textContent = "N/A";
     r.tempBar.style.width = "0%";
@@ -242,15 +251,12 @@ function updateDriveEl(r, d) {
     setBarClass(r.tempBar, d.temp >= 70 ? "bar--crit" : d.temp >= 50 ? "bar--warn" : "bar--ok");
   }
 
-  // Read / write (bars scale to the busiest recent speed, decaying slowly)
-  const peak = Math.max(
-    MIN_SPEED_SCALE, d.read_speed, d.write_speed, (drivePeaks.get(d.id) || 0) * 0.97
-  );
-  drivePeaks.set(d.id, peak);
-  r.readVal.textContent = `${formatBytes(d.read_speed)}/s`;
-  r.writeVal.textContent = `${formatBytes(d.write_speed)}/s`;
-  r.readBar.style.width = `${Math.min(100, (d.read_speed / peak) * 100)}%`;
-  r.writeBar.style.width = `${Math.min(100, (d.write_speed / peak) * 100)}%`;
+  // Info tiles
+  r.read.textContent = `${formatBytes(d.read_speed)}/s`;
+  r.write.textContent = `${formatBytes(d.write_speed)}/s`;
+  r.usedBytes.textContent = formatBytes(d.used);
+  r.free.textContent = formatBytes(d.free);
+  r.total.textContent = formatBytes(d.size);
 }
 
 function renderDrives(drives) {
@@ -277,10 +283,119 @@ function renderDrives(drives) {
     if (!alive.has(id)) {
       entry.root.remove();
       driveEls.delete(id);
-      drivePeaks.delete(id);
     }
   }
 }
+
+/*Overall HEalth Card*/
+
+const healthEls = {
+  card: document.getElementById("card-health"),
+  label: document.getElementById("healthLabel"),
+  sub: document.getElementById("healthSub"),
+  list: document.getElementById("issueList"),
+  count: document.getElementById("issueCount"),
+  uptime: document.getElementById("healthUptime"),
+  clock: document.getElementById("healthClock"),
+  pct: document.getElementById("healthUptimePct"),
+};
+const SEV_TEXT={info: "INFO", warning: "WARN", critical: "CRIT"};
+let lastIssuesKey = "";
+let uptimeBase=null;
+let clockBase = null;
+
+const pad2 = (n) => String(n).padStart(2, "0");
+
+function renderIssues(issues){
+  const key= JSON.stringify(issues);
+  if(key===lastIssuesKey)
+    return;
+  lastIssuesKey=key;
+
+  const frag=document.createDocumentFragment();
+  if(issues.length===0){
+    const li=document.createElement("li");
+    li.className="issue issue--none";
+    li.textContent="No issues detected";
+    frag.appendChild(li);
+  }
+  else{
+    issues.forEach((issue) => {
+      const li = document.createElement("li");
+      li.className = `issue issue--${issue.severity}`;
+      const sev = document.createElement("span");
+      sev.className = "issue__sev";
+      sev.textContent = SEV_TEXT[issue.severity] ?? issue.severity.toUpperCase();
+      const msg = document.createElement("span");
+      msg.className = "issue__msg";
+      msg.textContent = issue.message;
+      const src = document.createElement("span");
+      src.className = "issue__src";
+      src.textContent = issue.source;
+      li.append(sev, msg, src);
+      frag.appendChild(li);
+    });
+  }
+  healthEls.list.replaceChildren(frag);
+  healthEls.count.textContent=issues.length;
+}
+
+function tickHealthClock(){
+  if(!healthEls.clock)
+    return;
+  if(clockBase) {
+    const d=new Date(Date.now()+clockBase.skew+clockBase.offsetMin*60000);
+    healthEls.clock.textContent=`${pad2(d.getUTCHours())}:${pad2(d.getUTCMinutes())}:${pad2(d.getUTCSeconds())}`;
+  }
+  else
+    healthEls.clock.textContent="-";
+
+  if(uptimeBase){
+    let s= Math.floor(uptimeBase.seconds+(Date.now()-uptimeBase.at)/1000);
+    const days=Math.floor(s/86400); s%=86400;
+    const hrs=Math.floor(s/3600); s%=3600;
+    const mins=Math.floor(s/60);
+    const secs=s%60;
+    healthEls.uptime.textContent=days>0?`${days}d ${pad2(hrs)}h ${pad2(mins)}m`:`${hrs}h ${pad2(mins)}m ${pad2(secs)}s`;
+  }
+  else{
+    healthEls.uptime.textContent="-";
+  }
+}
+
+function renderHealth(data){
+  const h=data.health;
+  if(!healthEls.card||!h)
+    return;
+
+  healthEls.card.dataset.state=h.state;
+  healthEls.label.textContent=h.label;
+  healthEls.sub.textContent=h.summary;
+  renderIssues(h.issues||[]);
+
+  if(data.uptime_seconds != null)
+    uptimeBase={seconds: data.uptime_seconds, at: Date.now()};
+  if(data.server_time){
+    clockBase={
+      skew: data.server_time.epoch*1000-Date.now(),
+      offsetMin: data.server_time.utc_offset_min,
+    };
+  }
+  healthEls.pct.textContent= data.uptime_percent != null ? `${data.uptime_percent.toFixed(2)}%` : "—";
+  tickHealthClock();
+}
+function setHealthOffline() {
+  if(!healthEls.card) return;
+  healthEls.card.dataset.state="offline";
+  healthEls.label.textContent="No Signal";
+  healthEls.sub.textContent="Backend unreachable";
+  renderIssues([{ severity: "critical", source: "NETWORK", message: "Cannot reach the backend" }]);
+  uptimeBase = null;
+  clockBase=null;
+  healthEls.pct.textContent="-";
+  tickHealthClock();
+}
+/*Sync Function*/
 async function fetchSystemInfo() {
   if (inFlight) inFlight.abort();
   inFlight = new AbortController();
@@ -310,6 +425,7 @@ async function fetchSystemInfo() {
     setMetric(nodes.swapValue, nodes.swapBar, data.swap);
 
     renderDrives(data.drives);
+    renderHealth(data);
 
     nodes.uptimeValue.textContent = data.uptime ?? "—";
     nodes.batteryValue.textContent = formatBattery(data.battery);
@@ -337,7 +453,7 @@ async function fetchSystemInfo() {
       nodes.overallState.textContent = "Backend unavailable";
       nodes.overallHint.textContent = "Check that FastAPI is running and the endpoint is reachable.";
     }
-
+    setHealthOffline();
     updateStatus("offline", "Offline");
   } finally {
     clearTimeout(timeout);
@@ -347,4 +463,4 @@ async function fetchSystemInfo() {
 nodes.refreshBtn.addEventListener("click", fetchSystemInfo);
 
 fetchSystemInfo();
-setInterval(fetchSystemInfo, REFRESH_INTERVAL_MS);
+setInterval(fetchSystemInfo, REFRESH_INTERVAL_MS);setInterval(tickHealthClock, 1000);

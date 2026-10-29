@@ -166,6 +166,44 @@
             </div>
             <div class="hcard__metrics" id="diskMetricsContainer"></div>
         </div>
+        <!-- Overall Health Card -->
+        <section class="hcard health" id="card-health" data-state="loading" aria-live="polite">
+            <div class="health__hero">
+                <svg class="health__emoji" id="healthEmoji" viewBox="0 0 340 230" aria-hidden="true">
+                    <circle cx="160" cy="112" r="82"/>
+                    <g class="st st--healthy st--fair"><ellipse cx="132" cy="98" rx="26" ry="20"/> <ellipse cx="188" cy="98" rx="26" ry="20"/> <path d="M158 94 Q160 89 162 94"/> <path d="M106 94 L92 90"/> <path d="M214 94 L228 90"/> <path d="M122 92 l11 -7 M178 92 l11 -7" opacity=".55"/></g>
+                    <g class="st st--healthy"><path d="M90 60 Q110 46 134 54"/><path d="M186 54 Q210 46 230 60"/><path d="M104 132 Q160 146 216 132"/><path d="M104 132 Q160 190 216 132"/><path d="M126.4 136.5 V150.6 M148.8 138.7 V159.8 M171.2 138.7 V159.8 M193.6 136.5 V150.6"/><path d="M101 126 Q95 134 102 142 M219 126 Q225 134 218 142"/></g>
+                    <g class="st st--fair"><path d="M92 58 Q112 50 134 55"/><path d="M186 55 Q208 50 228 58"/><path d="M124 142 Q160 170 196 142"/><path d="M121 138 l-3 -4 M199 138 l3 -4"/></g>
+                    <g class="st st--degraded"><circle cx="130" cy="100" r="9"/><circle cx="130" cy="100" r="3.5"/><circle cx="190" cy="100" r="9"/><circle cx="190" cy="100" r="3.5"/><path d="M110 89 L146 78"/><path d="M174 78 L210 89"/><path d="M130 154 Q145 146 160 154 T190 154"/><path d="M222 60 c-0.8 3.2 -6.4 6.4 -6.4 11.2 a6.4 6.4 0 0 0 12.8 0 c0 -4.8 -5.6 -8 -6.4 -11.2 z"/></g>
+                    <g class="st st--unstable"><circle cx="130" cy="100" r="11"/><circle cx="130" cy="100" r="3"/><circle cx="190" cy="100" r="11"/><circle cx="190" cy="100" r="3"/><path d="M110 90 L146 74"/><path d="M174 74 L210 90"/><path d="M126 156 L137.3 148 L148.7 156 L160 148 L171.3 156 L182.7 148 L194 156"/><path d="M220 58 c-1 4 -8 8 -8 14 a8 8 0 0 0 16 0 c0 -6 -7 -10 -8 -14 z"/><path d="M94 72 c-0.7 2.8 -5.6 5.6 -5.6 9.7 a5.6 5.6 0 0 0 11.2 0 c0 -4.1 -4.8 -7 -5.6 -9.7 z"/></g>
+                    <g class="st st--critical"><path d="M121 91 L139 109 M139 91 L121 109"/><path d="M181 91 L199 109 M199 91 L181 109"/><path d="M110 92 L146 74"/><path d="M174 74 L210 92"/><ellipse cx="160" cy="160" rx="20" ry="26"/><path d="M148 174 Q160 164 172 174"/><path d="M220 58 c-1 4 -8 8 -8 14 a8 8 0 0 0 16 0 c0 -6 -7 -10 -8 -14 z"/><path d="M66 78 l-12 -3 M64 104 l-14 0 M254 78 l12 -3 M256 104 l14 0"/></g>
+                    <g class="st st--healthy st--fair"><g class="occ" transform="translate(16,-2)"><rect x="-14" y="-3" width="30" height="20" rx="5" transform="translate(34,120) rotate(-38)"/><rect x="-5.5" y="-27" width="11" height="27" rx="5.5" transform="translate(36,90) rotate(-66)"/><rect x="-5.5" y="-27" width="11" height="27" rx="5.5" transform="translate(44,84) rotate(-42)"/><rect x="-5.5" y="-27" width="11" height="27" rx="5.5" transform="translate(53,81) rotate(-18)"/><circle cx="52" cy="98" r="18"/><rect x="-5" y="-26" width="10" height="28" rx="5" transform="translate(60,88) rotate(100)"/><rect x="-5" y="-26" width="10" height="28" rx="5" transform="translate(58,108) rotate(70)"/></g></g>
+                    <g class="thumb"><g class="occ"><rect x="266" y="116" width="15" height="46" rx="7.5"/><rect x="260" y="148" width="48" height="42" rx="13"/></g><path d="M280 162 H301 M280 173 H301 M280 183 H301"/></g>
+                </svg>
+                <div class="health__label" id="healthLabel">Checking…</div>
+                <div class="health__sub" id="healthSub">Waiting for the backend</div>
+            </div>
+
+            <div class="health__issues">
+                <div class="health__issues-head"><span>ISSUES</span><span id="issueCount">0</span></div>
+                <ul class="health__list" id="issueList"></ul>
+            </div>
+
+            <div class="health__footer">
+                <div class="health-tile">
+                    <span class="health-tile__label">UPTIME</span>
+                    <span class="health-tile__value" id="healthUptime">—</span>
+                </div>
+                <div class="health-tile">
+                    <span class="health-tile__label">CLOCK</span>
+                    <span class="health-tile__value" id="healthClock">—</span>
+                </div>
+                <div class="health-tile" title="Share of the last 7 days the backend was running">
+                    <span class="health-tile__label">UPTIME %</span>
+                    <span class="health-tile__value" id="healthUptimePct">—</span>
+                </div>
+            </div>
+        </section>
     </main>
     <div class="toastBiscuit">
         <div class="toast__icon"></div>

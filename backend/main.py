@@ -8,7 +8,9 @@ import subprocess
 import sys
 import threading
 import time
-
+import datetime
+from collections import deque
+from contextlib import asynccontextmanager
 import psutil
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -18,7 +20,13 @@ log= logging.getLogger("syspulse")
 IS_WINDOWS=os.name=="nt"
 IS_LINUX=sys.platform.startswith("linux")
 
-app=FastAPI()
+@asynccontextmanager
+async def lifespan(_app):
+    _start_heartbeat()
+    yield
+
+
+app=FastAPI(lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -337,12 +345,149 @@ if IS_WINDOWS: #load up cache so that first request aint slow
     threading.Thread(target=_windows_topology,daemon=True).start()
 
 
-#Endpoint
+#-------------Uptime Percentage Thingy--------
 
+_HB_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "heartbeats.log")
+_HB_INTERVAL = 60
+_HB_TOLERANCE = 150
+_HB_WINDOW = 7 * 24 * 3600
+_hb_lock = threading.Lock()
+_hb_started = False
+_uptime_cache = {"ts": 0.0, "val": 100.0}
+
+def _load_heartbeats():
+    try:
+        with open(_HB_FILE) as f:
+            return sorted(int(line) for line in f if line.strip().isdigit())
+    except OSError:
+        return []
+
+
+def _start_heartbeat():
+    global _hb_started
+    with _hb_lock:
+        if _hb_started:
+            return
+        _hb_started = True
+
+    cutoff = time.time() - _HB_WINDOW  # drop old history so the file stays small
+    keep = [t for t in _load_heartbeats() if t >= cutoff]
+    try:
+        with open(_HB_FILE, "w") as f:
+            f.writelines(f"{t}\n" for t in keep)
+    except OSError:
+        log.exception("could not prune heartbeat file")
+
+    def loop():
+        while True:
+            try:
+                with open(_HB_FILE, "a") as f:
+                    f.write(f"{int(time.time())}\n")
+            except OSError:
+                log.exception("could not write heartbeat")
+            time.sleep(_HB_INTERVAL)
+
+    threading.Thread(target=loop, daemon=True).start()
+
+
+def get_uptime_percent():
+    now = time.time()
+    if now - _uptime_cache["ts"] < 30:
+        return _uptime_cache["val"]
+
+    beats = [t for t in _load_heartbeats() if t >= now - _HB_WINDOW]
+    if not beats or now - beats[0] < 1:
+        val = 100.0
+    else:
+        total = now - beats[0]
+        up = 0.0
+        for a, b in zip(beats, beats[1:]):
+            gap = b - a
+            up += gap if gap <= _HB_TOLERANCE else _HB_INTERVAL
+        tail = now - beats[-1]
+        up += tail if tail <= _HB_TOLERANCE else _HB_INTERVAL
+        val = min(100.0, up / total * 100)
+
+    val = round(val, 2)
+    _uptime_cache.update(ts=now, val=val)
+    return val
+
+#----------Overall Health part----------
+
+_STATES = ["healthy", "fair", "degraded", "unstable", "critical"]
+_STATE_LABEL = {"healthy": "Healthy", "fair": "Fair", "degraded": "Degraded",
+                "unstable": "Unstable", "critical": "Critical"}
+_SEV_WEIGHT = {"info": 5, "warning": 15, "critical": 35}
+_SEV_ORDER = {"critical": 0, "warning": 1, "info": 2}
+
+
+def _level(value, info, warning, critical):
+    """Map a reading to a severity using (info, warning, critical) thresholds."""
+    if value >= critical:
+        return "critical"
+    if value >= warning:
+        return "warning"
+    if info is not None and value >= info:
+        return "info"
+    return None
+
+
+def evaluate_health(cpu_avg, memory, swap, cpu_temp, drives, battery):
+    issues = []
+
+    def add(severity, source, message):
+        if severity:
+            issues.append({"severity": severity, "source": source, "message": message})
+
+    add(_level(cpu_avg, 80, 90, 98), "CPU", f"CPU load averaging {cpu_avg:.0f}%")
+    if cpu_temp is not None:
+        add(_level(cpu_temp, 70, 80, 90), "CPU", f"CPU temperature at {cpu_temp:.0f}°C")
+    add(_level(memory, 80, 90, 95), "MEMORY", f"RAM usage at {memory:.0f}%")
+    add(_level(swap, 50, 80, 95), "SWAP", f"Swap usage at {swap:.0f}%")
+
+    for d in drives:
+        name = d["name"]
+        add(_level(d["percent"], 75, 85, 95), "DISK", f"{name} is {d['percent']:.0f}% full")
+        if d["temp"] is not None:
+            warn, crit = (50, 60) if d["kind"] == "HDD" else (70, 80)
+            add(_level(d["temp"], None, warn, crit), "DISK", f"{name} temperature at {d['temp']:.0f}°C")
+        status = (d.get("health") or "").strip().lower()
+        if status and status != "healthy":
+            add("critical" if status == "unhealthy" else "warning", "DISK",
+                f"{name} reports health status: {d['health']}")
+
+    if battery is not None and battery.power_plugged is False:
+        add(_level(100 - battery.percent, None, 80, 90), "BATTERY",
+            f"Running on battery, {battery.percent:.0f}% left")
+
+    score = max(0, 100 - sum(_SEV_WEIGHT[i["severity"]] for i in issues))
+    idx = 0 if score >= 90 else 1 if score >= 75 else 2 if score >= 55 else 3 if score >= 35 else 4
+    severities = {i["severity"] for i in issues}
+    if "critical" in severities:
+        idx = max(idx, 3)
+    elif "warning" in severities:
+        idx = max(idx, 1)
+
+    issues.sort(key=lambda i: _SEV_ORDER[i["severity"]])
+    state = _STATES[idx]
+    summary = ("All systems nominal" if not issues
+    else f"{len(issues)} issue{'s' if len(issues) != 1 else ''} found · score {score}/100")
+    return {"state": state, "label": _STATE_LABEL[state], "score": score,
+            "summary": summary, "issues": issues}
+
+
+
+#----------Endpoint-----------
+
+_cpu_hist = deque(maxlen=5)  # smoothed so one CPU spike doesn't flip the health state
+_cpu_lock = threading.Lock()
 
 @app.get("/server/system")
 def systeminfo():
     cpu = psutil.cpu_percent(interval=1)
+    with _cpu_lock:
+        _cpu_hist.append(cpu)
+        cpu_avg = sum(_cpu_hist) / len(_cpu_hist)
     memory = psutil.virtual_memory().percent
     swap_mem = psutil.swap_memory().percent
 
@@ -352,9 +497,17 @@ def systeminfo():
         log.exception("drive collection failed")
         drives = []
 
-    boot = psutil.boot_time()
-    up = time.time() - boot
+    cpu_temp = get_cpu_temp()
     battery = psutil.sensors_battery() if hasattr(psutil, "sensors_battery") else None
+
+    try:
+        health = evaluate_health(cpu_avg, memory, swap_mem, cpu_temp, drives, battery)
+    except Exception:
+        log.exception("health evaluation failed")
+        health = None
+
+    up = time.time() - psutil.boot_time()
+    now = datetime.datetime.now().astimezone()
 
     return {
         "cpu": cpu,
@@ -363,6 +516,13 @@ def systeminfo():
         "drives": drives,
         "network": get_network_speeds(),
         "uptime": f"{int(up // 3600)}h {int((up % 3600) // 60)}m",
+        "uptime_seconds": int(up),
+        "uptime_percent": get_uptime_percent(),
+        "server_time": {
+            "epoch": time.time(),
+            "utc_offset_min": int(now.utcoffset().total_seconds() // 60),
+        },
         "battery": battery.percent if battery else None,
         "cpu_temp": get_cpu_temp(),
+        "health": health,
     }

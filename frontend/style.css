@@ -911,3 +911,276 @@ body {
 .hcard__bar.bar--write {
     background: linear-gradient(90deg, var(--accent2), #f59e0b);
 }
+/* ── Disk info tiles ── */
+.disk-drive__sub {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.disk-tiles {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: .5rem;
+    margin-top: .2rem;
+}
+
+.disk-tile {
+    grid-column: span 2;
+    display: flex;
+    flex-direction: column;
+    gap: .3rem;
+    padding: .55rem .7rem;
+    background: rgba(255, 255, 255, .02);
+    border: 1px solid var(--border);
+    border-radius: var(--r);
+    min-width: 0;
+}
+
+.disk-tile--wide {
+    grid-column: span 3;
+}
+
+.disk-tile__label {
+    font-family: var(--mono);
+    font-size: .55rem;
+    letter-spacing: .2em;
+    color: var(--label);
+}
+
+.disk-tile__value {
+    font-family: var(--mono);
+    font-size: .9rem;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.disk-tile--read .disk-tile__value {
+    color: var(--blue);
+}
+
+.disk-tile--write .disk-tile__value {
+    color: var(--accent2);
+}
+
+@media (max-width: 500px) {
+    .disk-tile {
+        grid-column: span 3;
+    }
+
+    .disk-tile--wide {
+        grid-column: span 6;
+    }
+}
+/* Disk card: second row, left side, two columns wide */
+#disk-drive {
+    grid-column: 1 / 3;
+    grid-row: 2;
+}
+.disk-tiles {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .5rem;
+    margin-top: .2rem;
+}
+
+.disk-tile,
+.disk-tile--wide {
+    flex: 0 0 auto;
+    min-width: 7.5rem;
+}
+/*Overall Card Health*/
+#card-health {
+    --hc: var(--accent);
+    grid-column: 3;
+    grid-row: 1 / 3;
+    align-self: stretch;
+    flex-direction: column;
+    gap: 1rem;
+    padding: 1.4rem;
+    min-height: 24rem;
+    contain: size;            /* keep a long issue list from stretching the whole row */
+    border-color: color-mix(in srgb, var(--hc) 30%, var(--border));
+}
+
+#card-health[data-state="fair"]     { --hc: #8bd32a; }
+#card-health[data-state="degraded"] { --hc: var(--accent2); }
+#card-health[data-state="unstable"] { --hc: #f07a1a; }
+#card-health[data-state="critical"] { --hc: #e5383b; }
+#card-health[data-state="offline"],
+#card-health[data-state="loading"]  { --hc: var(--muted); }
+
+.health__hero {
+    flex: 0 0 auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: .35rem;
+}
+
+.health__emoji {
+    width: 100%;
+    max-height: 160px;
+    overflow: visible;
+    color: var(--hc);
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 3;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    filter: drop-shadow(0 0 6px color-mix(in srgb, var(--hc) 45%, transparent));
+    transition: color .4s;
+}
+
+.health__emoji .st {
+    opacity: 0;
+    transition: opacity .35s ease;
+}
+
+#card-health[data-state="healthy"]  .st--healthy,
+#card-health[data-state="fair"]     .st--fair,
+#card-health[data-state="degraded"] .st--degraded,
+#card-health[data-state="unstable"] .st--unstable,
+#card-health[data-state="critical"] .st--critical,
+#card-health[data-state="offline"]  .st--critical {
+    opacity: 1;
+}
+
+.health__emoji .occ rect,
+.health__emoji .occ circle {
+    fill: var(--bg-card);     /* hides lines behind the hands */
+}
+
+.health__emoji .thumb {
+    transform-origin: 284px 168px;
+    transition: transform .6s cubic-bezier(.34, 1.56, .64, 1);
+}
+
+#card-health[data-state="healthy"]  .thumb { transform: rotate(0deg); }
+#card-health[data-state="fair"]     .thumb { transform: rotate(32deg); }
+#card-health[data-state="degraded"] .thumb,
+#card-health[data-state="loading"]  .thumb { transform: rotate(90deg); }
+#card-health[data-state="unstable"] .thumb { transform: rotate(148deg); }
+#card-health[data-state="critical"] .thumb,
+#card-health[data-state="offline"]  .thumb { transform: rotate(180deg); }
+
+.health__label {
+    font-family: var(--sans);
+    font-weight: 800;
+    font-size: 1.5rem;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--hc);
+}
+
+.health__sub {
+    font-family: var(--mono);
+    font-size: .72rem;
+    color: var(--muted);
+}
+
+/* issues box */
+.health__issues {
+    flex: 1 1 0;
+    min-height: 3.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: .5rem;
+}
+
+.health__issues-head {
+    display: flex;
+    justify-content: space-between;
+    font-family: var(--mono);
+    font-size: .6rem;
+    letter-spacing: .2em;
+    color: var(--label);
+}
+
+.health__list {
+    list-style: none;
+    flex: 1 1 0;
+    min-height: 0;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: .4rem;
+    padding-right: .3rem;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-hi) transparent;
+}
+
+.issue {
+    --sev: var(--blue);
+    flex: 0 0 auto;
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: .6rem;
+    padding: .5rem .65rem;
+    background: rgba(255, 255, 255, .02);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--sev);
+    border-radius: var(--r);
+    font-family: var(--mono);
+    font-size: .8rem;
+}
+
+.issue--info     { --sev: var(--blue); }
+.issue--warning  { --sev: var(--accent2); }
+.issue--critical { --sev: #e5383b; }
+.issue--none     { --sev: var(--accent); display: block; color: var(--muted); }
+
+.issue__sev {
+    font-size: .58rem;
+    letter-spacing: .15em;
+    color: var(--sev);
+    border: 1px solid var(--sev);
+    border-radius: 3px;
+    padding: .1rem .3rem;
+}
+
+.issue__src {
+    font-size: .58rem;
+    letter-spacing: .15em;
+    color: var(--label);
+}
+
+/* footer tiles */
+.health__footer {
+    flex: 0 0 auto;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: .5rem;
+    padding-top: .9rem;
+    border-top: 1px solid var(--border);
+}
+
+.health-tile {
+    display: flex;
+    flex-direction: column;
+    gap: .3rem;
+    padding: .55rem .7rem;
+    background: rgba(255, 255, 255, .02);
+    border: 1px solid var(--border);
+    border-radius: var(--r);
+    min-width: 0;
+}
+
+.health-tile__label {
+    font-family: var(--mono);
+    font-size: .55rem;
+    letter-spacing: .2em;
+    color: var(--label);
+}
+
+.health-tile__value {
+    font-family: var(--mono);
+    font-size: .9rem;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
