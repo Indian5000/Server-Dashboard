@@ -4,15 +4,17 @@ services:
       context: ..
       dockerfile: docker/Dockerfile
     container_name: syspulse-backend
-    privileged: true
-    pid: host
+    user: "1000:1000"
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
     volumes:
-      # Allows monitoring of all running host services and processes
-      - /proc:/host/proc:ro
-      # Allows reading hardware, system stats, and drive information
-      - /sys:/host/sys:ro
-      # Allows scanning all mounted partitions and disk usage directly
-      - /:/host:ro
+      - /mnt:/mnt:ro
+    tmpfs:
+      - /tmp
+      - /run
     restart: unless-stopped
