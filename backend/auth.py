@@ -212,3 +212,206 @@ def _active_admins(con, exclude_id: Optional[int] = None) -> int:
         args.append(exclude_id)
     return con.execute(sql, args).fetchone()[0]
 
+#---------Dependencies-----------
+def current_user(authorization: Optional[str] = Header(default=None)) -> dict:
+    """Use as `user: dict = Depends(current_user)` to require a signed-in user."""
+    if not authorization or not authorization.lower().startswith("bearer "):
+        raise HTTPException(401, "Not signed in", headers={"WWW-Authenticate": "Bearer"})
+    token_hash = _hash_token(authorization[7:].strip())
+    with db() as con:
+        row = con.execute(
+            """SELECT u.id, u.username, u.role, u.disabled
+               FROM sessions s JOIN users u ON u.id = s.user_id
+               WHERE s.token_hash = ? AND s.expires_at > ?""",
+            (token_hash, time.time()),
+        ).fetchone()
+    if not row or row["disabled"]:
+        raise HTTPException(401, "Session expired", headers={"WWW-Authenticate": "Bearer"})
+    return {"id": row["id"], "username": row["username"], "role": row["role"], "token_hash": token_hash}
+
+
+def require_admin(user: dict = Depends(current_user)) -> dict:
+    if user["role"] != "admin":
+        raise HTTPException(403, "Administrator access required")
+    return user
+
+
+#--------------Request Bodies------------
+
+class Credentials(BaseModel):
+    username: str
+    password: str
+    remember: bool =False
+
+
+class NewUser(BaseModel):
+    username: str
+    password: str
+    role: str="viewer"
+
+
+class UserPatch(BaseModel):
+    role: Optional[str]=None
+    disabled: Optional[bool]=None
+    password: Optional[str]=None
+
+
+class PasswordChange(BaseModel):
+    current_password: str
+    new_password: str
+
+
+def _client_ip(request: Request) -> str:
+    return request.client.host if request.client else "unknown"
+
+
+def _session_payload(con, row, remember: bool, request: Request)->dict:
+    token, expires= _create_session(con,row["id"], remember,_client_ip(request))
+    return {"token": token, "expires_at":expires, "user": _public(row)}
+
+
+#-------Sign in/out logic--------
+
+@router.get("/auth/status")
+def auth_status():
+    """Logic for deciding whether to display la login page or admin account create"""
+    with db() as con:
+        count =con.execute("SELECT COUNT(*) FROM users").fetchone()[0]
+    return {"setup_required": count==0}
+
+
+@router.post("/auth/setup")
+def auth_setup(body: Credentials, request: Request):
+    """New first admin user creatore page. Dies alone never to be tuched again after first user created"""
+    username=_clean_username(body.username)
+    _check_password(body.password)
+    with db() as con:
+        con.execute("BEGIN IMMEDIATE")
+        if con.execute("SELECT COUNT(*) FROM users").fetchone()[0]>0:
+            raise HTTPException(409, "Setup already completed. Please sign in.")
+        con.execute(
+            "INSERT INTO users (username, pw_hash,role,created_at,last_login) VALUES (?,?,?,?,?)",
+            (username,hash_password(body.password),"admin",time.time(),time.time()),
+        )
+        row= con.execute("SELECT * FROM users WHERE username = ?",(username,)).fetchone()
+        payload=_session_payload(con,row,body.remember,request)
+    log.info("first admin'%s' created",username)
+    return payload
+
+
+@router.post("/auth/login")
+def auth_login(body:Credentials,request:Request):
+    username=(body.username or "").strip().lower()
+    key=(username,_client_ip(request))
+    _check_lock(key)
+    with db() as con:
+        row=con.execute("SELECT * FROM users WHERE username = ?",(username,)).fetchone()
+        good=verify_password(body.password or "", row["pw_hash"] if row else _DUMMY_HASH)
+        if not (row and good and not row["disabled"]):
+            _record_fail(key)
+            log.warning("failed sign-in for '%s' from %s", username,key[1])
+            raise HTTPException(401, "Invalid username or password.")
+        _clear_fails(key)
+        con.execute("UPDATE users SET last_login=? WHERE id= ?", (time.time(),row["id"]))
+        payload=_session_payload(con,row,body.remember,request)
+    log.info(" '%s' signed into existence",username)
+    return payload
+
+
+@router.post("/auth/logout")
+def auth_logout(user: dict=Depends(current_user)):
+    with db() as con:
+        con.execute("DELETE FROM sessions WHERE token_hash = ?", (user["token_hash"],))
+    return{"ok": True}
+
+
+@router.get("/auth/me")
+def auth_me(user: dict=Depends(current_user)):
+    return{"id": user["id"], "username": user["username"], "role": user["role"]}
+
+
+@router.post("/auth/change-password")
+def auth_change_password(body: PasswordChange, user: dict=Depends(current_user)):
+    _check_password(body.new_password)
+    with db() as con:
+        row=con.execute("SELECT pw_hash FROM users WHERE id = ?",(user["id"],)).fetchone()
+        if not row or not verify_password(body.current_password or "", row["ps_hash"]):
+            raise HTTPException(400, "Current password is incorrect.")
+        con.execute("UPDATE users SET pw_hash = ? WHERE id = ?",(hash_password(body.new_password),user["id"]))
+        con.execute("DELETE FROM sessions WHERE user_id = ? AND token_hash != ?", (user["id"],user["token_hash"]))
+    return{"ok": True}
+
+
+#-----------User Management for da boss(da boss=admin only)--------------
+
+@router.get("/users")
+def users_list(_admin: dict=Depends(require_admin)):
+    with db() as con:
+        rows= con.execute("SELECT * FROM users ORDER BY username").fetchall()
+    return [_public(r) for r in rows]
+
+
+@router.post("/users", status_code=201)
+def users_create(body: NewUser, _admin: dict=Depends(require_admin)):
+    username=_clean_username(body.username)
+    _check_password(body.password)
+    _check_role(body.role)
+    with db() as con:
+        try:
+            con.execute(
+                "INSERT INTO users (username, pw_hash,role,created_at) VALUES (?,?,?,?)",
+                (username, hash_password(body.password), body.role,time.time()),
+            )
+        except sqlite3.IntegrityError:
+            raise HTTPException(409, "That Username is already taken.")
+        row=con.execute("SELECT * FROM users  WHERE username = ?",(username,)).fetchone()
+    return _public(row)
+
+
+@router.patch("/users/{user_id}")
+def users_update(user_id: int,body: UserPatch,admin: dict= Depends(require_admin)):
+    with db() as con:
+        target=con.execute("SELECT * FROM users WHERE id = ?",(user_id,)).fetchone()
+        if not target:
+            raise HTTPException(404, "User not found")
+
+        if body.role is not None:
+            _check_role(body.role)
+        if body.password is not None:
+            _check_password(body.password)
+        if body.disabled and user_id==admin["id"]:
+            raise HTTPException(400, "You cannot disable your own account")
+
+        losing_admin= target["role"]=="admin" and not target["disabled"] and (
+            (body.role is not None and body.role != "admin") or body.disabled is True
+        )
+        if losing_admin and _active_admins(con,exclude_id=user_id)==0:
+            raise HTTPException(400, "Atleast one active admin is required.")
+
+        if body.role is not None:
+            con.execute("UPDATE users SET role = ? WHERE id = ?", (body.role, user_id))
+        if body.disabled is not None:
+            con.execute("UPDATE users SET disabled =? WHERE id=?",(int(body.disabled),user_id))
+        if body.password is not None:
+            con.execute("UPDATE users SET pw_hash = ? WHERE id = ?", (hash_password(body.password), user_id))
+        if body.password is not None or body.disabled:
+            con.execute("DELETE FROM sessions WHERE user_id = ?", (user_id,))  # force sign-out(YEEET)
+        row = con.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
+    return _public(row)
+
+
+@router.delete("/users/{user_id}")
+def users_delete(user_id: int, admin: dict=Depends(require_admin)):
+    if user_id==admin["id"]:
+        raise HTTPException(400, "You cannot delete your own account.")
+    with db() as con:
+        target=con.execute("SELECT * FROM users WHERE id = ?",(user_id,)).fetchone()
+        if not target:
+            raise HTTPException(404, "User not found.")
+        if target["role"]=="admin" and not target["disabled"] and _active_admins(con, exclude_id=user_id)==0:
+            raise HTTPException(400, "At least one active administrator is required.")
+        con.execute("DELETE FROM users WHERE id= ?",(user_id))
+    return{"ok": True}
+
+
+init_db()
