@@ -16,7 +16,7 @@ services:
       SYSPULSE_DB: /data/users.db
     volumes:
       - ./data:/data
-      - /mnt:/mnt:ro
+      - /srv:/srv:ro
     tmpfs:
       - /tmp
       - /run
