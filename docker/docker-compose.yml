@@ -2,7 +2,7 @@ services:
   syspulse-backend:
     build:
       context: ..
-      dockerfile: Docker/Dockerfile
+      dockerfile: docker/Dockerfile
     container_name: syspulse-backend
     user: "1000:1000"
     read_only: true
