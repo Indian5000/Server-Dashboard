@@ -11,4 +11,6 @@ RUN chown -R 1000:1000 /app
 
 EXPOSE 8000
 
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+ENV ROOT_PATH=/app
+
+CMD uvicorn main:app --host 0.0.0.0 --port 8000 --root-path ${ROOT_PATH}
