@@ -1,4 +1,3 @@
-const API_BASE = (window.API_BASE || "http://localhost:8000").replace(/\/$/, "");
 const ENDPOINT = `${API_BASE}/server/system`;
 const REFRESH_INTERVAL_MS = 2000;
 
@@ -307,7 +306,7 @@ let clockBase = null;
 const pad2 = (n) => String(n).padStart(2, "0");
 
 function renderIssues(issues){
-  const key= JSON.stringify(issues);
+  const key = JSON.stringify(issues);
   if(key===lastIssuesKey)
     return;
   lastIssuesKey=key;
@@ -397,6 +396,7 @@ function setHealthOffline() {
 }
 /*Sync Function*/
 async function fetchSystemInfo() {
+  if (!Auth.isSignedIn()) return;
   if (inFlight) inFlight.abort();
   inFlight = new AbortController();
 
@@ -404,7 +404,7 @@ async function fetchSystemInfo() {
 
   try {
     updateStatus("loading", "Refreshing…");
-    const response = await fetch(ENDPOINT, {
+    const response = await authFetch(ENDPOINT, {
       method: "GET",
       signal: inFlight.signal,
       headers: { Accept: "application/json" },
@@ -415,6 +415,8 @@ async function fetchSystemInfo() {
     }
 
     const data = await response.json();
+    window.latestData = data; // used by the click-through detail views
+    window.dispatchEvent(new CustomEvent("sysdata", { detail: data }));
 
     setMetric(nodes.cpuValue, nodes.cpuBar, data.cpu);
     const temp = data.cpu_temp ?? null;
@@ -446,6 +448,7 @@ async function fetchSystemInfo() {
     updateStatus("online", "Live");
     //showBiscuit("REMOVE ME", "info", 3000);
   } catch (error) {
+    if (error instanceof AuthError || !Auth.isSignedIn()) return; // signed out: the login screen takes over
     if (error.name === "AbortError") {
       nodes.overallState.textContent = "Request timed out";
       nodes.overallHint.textContent = "The backend did not answer within the timeout window.";
@@ -462,5 +465,21 @@ async function fetchSystemInfo() {
 
 nodes.refreshBtn.addEventListener("click", fetchSystemInfo);
 
-fetchSystemInfo();
-setInterval(fetchSystemInfo, REFRESH_INTERVAL_MS);setInterval(tickHealthClock, 1000);
+// Polling only runs while someone is signed in (auth.js fires these events).
+let pollTimer = null;
+function startPolling() {
+  stopPolling();
+  fetchSystemInfo();
+  pollTimer = setInterval(fetchSystemInfo, REFRESH_INTERVAL_MS);
+}
+function stopPolling() {
+  clearInterval(pollTimer);
+  pollTimer = null;
+  if (inFlight) inFlight.abort();
+}
+window.addEventListener("auth:ready", startPolling);
+window.addEventListener("auth:logout", () => {
+  stopPolling();
+  window.latestData = null;
+});
+setInterval(tickHealthClock, 1000);
