@@ -1,0 +1,37 @@
+name: Deploy Vanilla Frontend
+
+on:
+  push:
+    branches: [ main ]
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Inject Production API URL
+        run: |
+          sed -i 's|http://localhost:8000|https://driveserver.taile2aed8.ts.net/app|g' frontend/auth.js
+
+      - name: Inject Demo Credentials Box
+        run: |
+          sed -i 's|<!-- DEMO_BOX_PLACEHOLDER -->|<div style="background: rgba(0, 255, 204, 0.05); border: 1px dashed var(--accent, #00ffcc); padding: 10px 14px; border-radius: 6px; font-size: 0.85rem; margin-bottom: 1rem; color: #ccc;"><strong style="color: var(--accent, #00ffcc);">Demo Access:</strong><br>Username: <code style="user-select: all; background: rgba(0,0,0,0.3); padding: 2px 4px; border-radius: 3px;">demo</code><br>Password: <code style="user-select: all; background: rgba(0,0,0,0.3); padding: 2px 4px; border-radius: 3px;">demo1234</code></div>|g' frontend/index.html
+
+      - name: Setup GitHub Pages
+        uses: actions/configure-pages@v4
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: 'frontend'
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
