@@ -77,14 +77,29 @@
                     <path
                         d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2z" />
                 </svg> File Manager</button>
+            <button class="drawer__btn" id="accountBtn" type="button"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                    viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                    stroke-linejoin="round">
+                    <path d="m21 2-9.6 9.6" />
+                    <circle cx="7.5" cy="15.5" r="5.5" />
+                    <path d="m15.5 7.5 3 3L22 7l-3-3" />
+                </svg> Change Password</button>
+            <button class="drawer__btn" id="usersBtn" type="button" data-admin-only hidden><svg
+                    xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                    <circle cx="9" cy="7" r="4" />
+                    <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+                    <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                </svg> User Management</button>
         </nav>
         <div>
             <div class="drawer__divider"></div>
             <div class="drawer__account">
-                <div class="drawer__avatar">A</div>
+                <div class="drawer__avatar" id="drawerAvatar">?</div>
                 <div class="drawer__userinfo">
-                    <span class="drawer__username">Dummy</span>
-                    <span class="drawer__usersub">Dummy User</span>
+                    <span class="drawer__username" id="drawerUsername">—</span>
+                    <span class="drawer__usersub" id="drawerRole">—</span>
                 </div>
                 <button class="drawer__signout" id="signoutBtn"><svg xmlns="http://www.w3.org/2000/svg" width="24"
                         height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
@@ -95,13 +110,14 @@
                         <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
                     </svg></button>
             </div>
+        </div>
     </aside>
     <div class="drawer-backdrop" id="drawerBackdrop"></div>
     <!-- ── Dashboard ── -->
     <main class="dashboard">
 
         <!--Cpu Card-->
-        <div class="hcard" id="card-cpu">
+        <div class="hcard" id="card-cpu" data-detail="cpu" tabindex="0" role="button" aria-label="Open CPU details" title="Click for details">
             <div class="hcard__icon-col">
                 <svg class="hcard__icon" id="cpuIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                     stroke-width="1.5">
@@ -129,7 +145,7 @@
             </div>
         </div>
         <!--Memory Card-->
-        <div class="hcard" id="card-mem">
+        <div class="hcard" id="card-mem" data-detail="mem" tabindex="0" role="button" aria-label="Open memory details" title="Click for details">
             <div class="hcard__icon-col">
                 <svg class="hcard__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
                     <rect x="2" y="8" width="20" height="8" rx="1" />
@@ -155,7 +171,7 @@
             </div>
         </div>
         <!--Disk Card-->
-        <div class="hcard" id="disk-drive">
+        <div class="hcard" id="disk-drive" data-detail="disk" tabindex="0" role="button" aria-label="Open disk details" title="Click for details">
             <div class="hcard__icon-col">
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="var(--accent)" class="bi bi-hdd"
                     viewBox="0 0 16 16">
@@ -167,7 +183,7 @@
             <div class="hcard__metrics" id="diskMetricsContainer"></div>
         </div>
         <!-- Overall Health Card -->
-        <section class="hcard health" id="card-health" data-state="loading" aria-live="polite">
+        <section class="hcard health" id="card-health" data-state="loading" data-detail="health" tabindex="0" role="button" aria-label="Open system health details" title="Click for details">
             <div class="health__hero">
                 <svg class="health__emoji" id="healthEmoji" viewBox="0 0 340 230" aria-hidden="true">
                     <circle cx="160" cy="112" r="82"/>
@@ -215,6 +231,100 @@
         <span class="footer__value" id="endpointValue">—</span>
     </footer>
 
+    <!-- ── Sign in / first-run setup ── -->
+    <div class="auth-screen" id="authScreen" hidden>
+        <form class="auth-card" id="authForm" novalidate>
+            <div class="auth-card__logo">SYS<span class="accent">PULSE</span></div>
+            <h1 class="auth-card__title" id="authTitle">Sign in</h1>
+            <p class="auth-card__hint" id="authHint"></p>
+            <label class="field"><span>Username</span>
+                <input id="authUser" name="username" autocomplete="username" autocapitalize="none" spellcheck="false" required>
+            </label>
+            <label class="field"><span>Password</span>
+                <input id="authPass" name="password" type="password" autocomplete="current-password" required>
+            </label>
+            <label class="field" id="authConfirmRow" hidden><span>Confirm password</span>
+                <input id="authConfirm" type="password" autocomplete="new-password">
+            </label>
+            <label class="check"><input id="authRemember" type="checkbox"><span>Keep me signed in</span></label>
+            <div class="form-msg form-msg--error" id="authError" role="alert"></div>
+            <button class="btn btn--primary" id="authSubmit" type="submit">Sign in</button>
+        </form>
+    </div>
+
+    <!-- ── User management (admins) ── -->
+    <dialog class="modal" id="usersDialog" aria-labelledby="usersTitle">
+        <div class="modal__panel">
+            <header class="modal__head">
+                <h2 id="usersTitle">User management</h2>
+                <button class="modal__close" type="button" data-close aria-label="Close">×</button>
+            </header>
+            <div class="modal__body">
+                <div class="dtable-wrap">
+                    <table class="dtable users-table">
+                        <thead>
+                            <tr><th>User</th><th>Role</th><th>Status</th><th>Last sign-in</th><th>Actions</th></tr>
+                        </thead>
+                        <tbody id="usersBody"></tbody>
+                    </table>
+                </div>
+                <form class="users-new" id="newUserForm">
+                    <h3>Add a user</h3>
+                    <div class="users-new__row">
+                        <input id="newUserName" placeholder="username" autocomplete="off" required aria-label="New username">
+                        <input id="newUserPass" type="password" placeholder="password (8+ characters)" autocomplete="new-password" required aria-label="New password">
+                        <select id="newUserRole" aria-label="Role">
+                            <option value="viewer">Viewer</option>
+                            <option value="admin">Admin</option>
+                        </select>
+                        <button class="btn btn--primary" type="submit">Add</button>
+                    </div>
+                </form>
+                <div class="form-msg" id="usersMsg" role="status"></div>
+            </div>
+        </div>
+    </dialog>
+
+    <!-- ── Change my password ── -->
+    <dialog class="modal modal--sm" id="accountDialog" aria-labelledby="accountTitle">
+        <div class="modal__panel">
+            <header class="modal__head">
+                <h2 id="accountTitle">Change password</h2>
+                <button class="modal__close" type="button" data-close aria-label="Close">×</button>
+            </header>
+            <form class="modal__body" id="accountForm">
+                <p class="muted" id="accountWho"></p>
+                <label class="field"><span>Current password</span><input id="accCurrent" type="password" autocomplete="current-password" required></label>
+                <label class="field"><span>New password</span><input id="accNew" type="password" autocomplete="new-password" required></label>
+                <label class="field"><span>Confirm new password</span><input id="accConfirm" type="password" autocomplete="new-password" required></label>
+                <div class="form-msg" id="accountMsg" role="status"></div>
+                <button class="btn btn--primary" type="submit">Change password</button>
+            </form>
+        </div>
+    </dialog>
+
+    <!-- ── Card detail view (graphs) ── -->
+    <dialog class="modal modal--wide" id="detailDialog" aria-labelledby="detailTitle">
+        <div class="modal__panel">
+            <header class="modal__head">
+                <h2 id="detailTitle">Details</h2>
+                <div class="ranges" id="detailRanges" role="group" aria-label="Time range">
+                    <button type="button" data-range="5m">5m</button>
+                    <button type="button" data-range="30m">30m</button>
+                    <button type="button" data-range="1h">1h</button>
+                    <button type="button" data-range="24h">24h</button>
+                </div>
+                <button class="modal__close" type="button" data-close aria-label="Close">×</button>
+            </header>
+            <div class="form-msg form-msg--error" id="detailError" role="status"></div>
+            <div class="modal__body" id="detailBody"></div>
+        </div>
+    </dialog>
+
+    <script src="auth.js"></script>
+    <script src="charts.js"></script>
+    <script src="detail.js"></script>
+    <script src="users.js"></script>
     <script src="script.js"></script>
 </body>
 
