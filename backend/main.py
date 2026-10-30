@@ -3,7 +3,9 @@ import glob
 import json
 import logging
 import os
+import platform
 import re
+import socket
 import subprocess
 import sys
 import threading
@@ -12,8 +14,10 @@ import datetime
 from collections import deque
 from contextlib import asynccontextmanager
 import psutil
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
+
+from auth import current_user, router as auth_router
 
 log= logging.getLogger("syspulse")
 
@@ -23,6 +27,7 @@ IS_LINUX=sys.platform.startswith("linux")
 @asynccontextmanager
 async def lifespan(_app):
     _start_heartbeat()
+    _start_sampler()
     yield
 
 
@@ -30,11 +35,16 @@ app=FastAPI(lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
+    # Tokens travel in the Authorization header (no cookies), so "*" is safe here.
+    # When exposing the dashboard beyond your LAN, list your real origin instead,
+    # e.g. allow_origins=["https://dash.example.com"].
     allow_origins=["*"],
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["*"],
-    allow_headers=["*"],
+    allow_headers=["Authorization", "Content-Type"],
 )
+
+app.include_router(auth_router)  # /auth/* and /users*
 
 #Networking logic(bip boop whatever)
 
@@ -50,16 +60,28 @@ def format_speed(value):
         value /= 1024
     return f"{round(value,2)} TB/s"
 
-def get_network_speeds():
-    global _last_network, _last_net_time
+_net_last_rates = (0.0, 0.0)
+
+
+def _net_rates():
+    """(upload, download) in bytes/s since the previous call, by anyone."""
+    global _last_network, _last_net_time, _net_last_rates
     with _net_lock:
-        now=time.time()
-        enlapsed=max(now-_last_net_time,0.001)
-        cur=psutil.net_io_counters()
-        up=max(0,(cur.bytes_sent-_last_network.bytes_sent)/enlapsed)
-        down=max(0,(cur.bytes_recv-_last_network.bytes_recv)/enlapsed)
-        _last_network,_last_net_time=cur,now
-    return {"upload":format_speed(up),"download":format_speed(down)}
+        now = time.time()
+        elapsed = now - _last_net_time
+        if elapsed < 0.5:  # two callers back to back: reuse the last reading
+            return _net_last_rates
+        cur = psutil.net_io_counters()
+        up = max(0.0, (cur.bytes_sent - _last_network.bytes_sent) / elapsed)
+        down = max(0.0, (cur.bytes_recv - _last_network.bytes_recv) / elapsed)
+        _last_network, _last_net_time = cur, now
+        _net_last_rates = (up, down)
+        return _net_last_rates
+
+
+def get_network_speeds():
+    up, down = _net_rates()
+    return {"upload": format_speed(up), "download": format_speed(down)}
 
 
 #CPU temperature(You gota cool guy or a overthinkin hot potato finder thingy)
@@ -479,11 +501,194 @@ def evaluate_health(cpu_avg, memory, swap, cpu_temp, drives, battery):
 
 #----------Endpoint-----------
 
+# ───────────────────────── History sampler (feeds the click-through graphs) ─────────────────────────
+# A background thread records one sample every 5 s (kept for 1 hour) and the
+# average of each minute (kept for 24 hours). It runs whether or not anyone has
+# the dashboard open. History lives in memory, so it restarts empty with the server.
+_SAMPLE_EVERY = 5
+_FINE = deque(maxlen=720)      # 720  x  5 s = 1 hour
+_COARSE = deque(maxlen=1440)   # 1440 x 60 s = 24 hours
+_hist_lock = threading.Lock()
+_sampler_started = False
+_latest_cores = []             # per-core load for the CPU detail view
+_RANGES = {"5m": 300, "30m": 1800, "1h": 3600, "24h": 86400}
+_SCALARS = ("cpu", "cpu_temp", "mem", "swap", "net_up", "net_down", "score")
+_DRIVE_FIELDS = ("read", "write", "temp", "percent")
+
+
+def _cpu_busy(prev, cur):
+    """Busy % between two psutil.cpu_times() snapshots (same maths psutil uses).
+    Done by hand so the sampler never disturbs psutil's own cpu_percent() state."""
+    def split(t):
+        idle = t.idle + getattr(t, "iowait", 0.0)
+        total = sum(t) - getattr(t, "guest", 0.0) - getattr(t, "guest_nice", 0.0)
+        return idle, total
+
+    prev_idle, prev_total = split(prev)
+    cur_idle, cur_total = split(cur)
+    span = cur_total - prev_total
+    if span <= 0:
+        return 0.0
+    return round(max(0.0, min(100.0, (1 - (cur_idle - prev_idle) / span) * 100)), 1)
+
+
+def _mean(values):
+    vals = [v for v in values if v is not None]
+    return round(sum(vals) / len(vals), 2) if vals else None
+
+
+def _average_samples(samples):
+    out = {"t": samples[-1]["t"]}
+    for key in _SCALARS:
+        out[key] = _mean([s[key] for s in samples])
+    ids = {i for s in samples for i in s["drives"]}
+    out["drives"] = {
+        i: {f: _mean([s["drives"][i][f] for s in samples if i in s["drives"]]) for f in _DRIVE_FIELDS}
+        for i in ids
+    }
+    return out
+
+
+def _sampler_loop():
+    global _latest_cores
+    prev_total = psutil.cpu_times()
+    prev_cores = psutil.cpu_times(percpu=True)
+    recent_cpu = deque(maxlen=5)  # smoothed, like the live health card
+    bucket = []
+    warned = False
+    _prime_processes()
+    time.sleep(1)  # first point after 1 s so the graphs fill in quickly
+    while True:
+        try:
+            cur_total = psutil.cpu_times()
+            cur_cores = psutil.cpu_times(percpu=True)
+            cpu = _cpu_busy(prev_total, cur_total)
+            cores = [_cpu_busy(a, b) for a, b in zip(prev_cores, cur_cores)]
+            prev_total, prev_cores = cur_total, cur_cores
+
+            vm = psutil.virtual_memory()
+            sw = psutil.swap_memory()
+            net_up, net_down = _net_rates()
+            drives = get_drives()
+            cpu_temp = get_cpu_temp()
+            battery = psutil.sensors_battery() if hasattr(psutil, "sensors_battery") else None
+
+            recent_cpu.append(cpu)
+            health = evaluate_health(sum(recent_cpu) / len(recent_cpu), vm.percent, sw.percent,cpu_temp, drives, battery)
+            sample = {
+                "t": time.time(),
+                "cpu": cpu,
+                "cpu_temp": cpu_temp,
+                "mem": vm.percent,
+                "swap": sw.percent,
+                "net_up": net_up,
+                "net_down": net_down,
+                "score": health["score"],
+                "drives": {
+                    d["id"]: {"read": d["read_speed"], "write": d["write_speed"],
+                              "temp": d["temp"], "percent": d["percent"]}
+                    for d in drives
+                },
+            }
+            _latest_cores = cores
+            bucket.append(sample)
+            with _hist_lock:
+                _FINE.append(sample)
+                if len(bucket) >= 60 // _SAMPLE_EVERY:
+                    _COARSE.append(_average_samples(bucket))
+                    bucket.clear()
+        except Exception:
+            if not warned:  # log once, not every 5 s
+                log.exception("history sampler error (will keep retrying)")
+                warned = True
+        time.sleep(_SAMPLE_EVERY)
+
+
+def _start_sampler():
+    global _sampler_started
+    with _hist_lock:
+        if _sampler_started:
+            return
+        _sampler_started = True
+    threading.Thread(target=_sampler_loop, daemon=True, name="syspulse-sampler").start()
+
+
+def _to_columns(samples, interval):
+    """Row samples -> column arrays, which is what the charts want."""
+    ids = sorted({i for s in samples for i in s["drives"]})
+    out = {"interval": interval, "t": [round(s["t"], 1) for s in samples]}
+    for key in _SCALARS:
+        out[key] = [s[key] for s in samples]
+    out["drives"] = {
+        i: {f: [s["drives"].get(i, {}).get(f) for s in samples] for f in _DRIVE_FIELDS}
+        for i in ids
+    }
+    return out
+
+
+# ───────────────────────── Detail info (CPU model, per-process usage, ...) ─────────────────────────
+_proc_lock = threading.Lock()
+_last_proc_call = 0.0
+
+
+def _prime_processes():
+    """psutil needs one earlier call per process before cpu_percent() means anything."""
+    for p in psutil.process_iter():
+        try:
+            p.cpu_percent(None)
+        except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+            pass
+
+
+def _top_processes(n=8):
+    global _last_proc_call
+    ncpu = psutil.cpu_count() or 1
+    with _proc_lock:
+        if time.time() - _last_proc_call > 20:  # baseline is stale: take a fresh window
+            _prime_processes()
+            time.sleep(0.5)
+        rows = []
+        for p in psutil.process_iter():
+            if p.pid == 0:  # Windows "System Idle Process" would top every list
+                continue
+            try:
+                with p.oneshot():
+                    rows.append({
+                        "pid": p.pid,
+                        "name": p.name(),
+                        "cpu": round(p.cpu_percent(None) / ncpu, 1),
+                        "mem_pct": round(p.memory_percent(), 1),
+                        "rss": p.memory_info().rss,
+                    })
+            except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+                continue
+        _last_proc_call = time.time()
+    return (sorted(rows, key=lambda r: r["cpu"], reverse=True)[:n],
+            sorted(rows, key=lambda r: r["rss"], reverse=True)[:n])
+
+
+def _cpu_model():
+    try:
+        if IS_LINUX:
+            with open("/proc/cpuinfo") as f:
+                for line in f:
+                    if line.lower().startswith(("model name", "hardware")):
+                        return line.split(":", 1)[1].strip()
+        if IS_WINDOWS:
+            import winreg
+            with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE,
+                                r"HARDWARE\DESCRIPTION\System\CentralProcessor\0") as key:
+                return winreg.QueryValueEx(key, "ProcessorNameString")[0].strip()
+    except Exception:
+        pass
+    return platform.processor() or "Unknown CPU"
+
+
 _cpu_hist = deque(maxlen=5)  # smoothed so one CPU spike doesn't flip the health state
 _cpu_lock = threading.Lock()
 
 @app.get("/server/system")
-def systeminfo():
+def systeminfo(user: dict = Depends(current_user)):
     cpu = psutil.cpu_percent(interval=1)
     with _cpu_lock:
         _cpu_hist.append(cpu)
@@ -523,6 +728,53 @@ def systeminfo():
             "utc_offset_min": int(now.utcoffset().total_seconds() // 60),
         },
         "battery": battery.percent if battery else None,
-        "cpu_temp": get_cpu_temp(),
+        "cpu_temp": cpu_temp,
         "health": health,
+    }
+
+
+@app.get("/server/history")
+def history(window: str = Query("30m", alias="range"), user: dict = Depends(current_user)):
+    seconds = _RANGES.get(window)
+    if seconds is None:
+        raise HTTPException(400, f"range must be one of: {', '.join(_RANGES)}")
+    with _hist_lock:
+        fine, coarse = list(_FINE), list(_COARSE)
+    use_coarse = seconds > 3600 and len(coarse) >= 2
+    source, interval = (coarse, 60) if use_coarse else (fine, _SAMPLE_EVERY)
+    cutoff = time.time() - seconds
+    return _to_columns([s for s in source if s["t"] >= cutoff], interval)
+
+
+@app.get("/server/detail")
+def detail(user: dict = Depends(current_user)):
+    vm, sw = psutil.virtual_memory(), psutil.swap_memory()
+    freq = None
+    try:
+        f = psutil.cpu_freq()
+        if f:
+            freq = {"current": round(f.current), "max": round(f.max) if f.max else None}
+    except Exception:
+        pass
+    try:
+        load = [round(x, 2) for x in psutil.getloadavg()]
+    except (AttributeError, OSError):
+        load = None
+    by_cpu, by_mem = _top_processes()
+    return {
+        "host": {"hostname": socket.gethostname(), "os": platform.platform(terse=True)},
+        "cpu": {
+            "model": _cpu_model(),
+            "physical": psutil.cpu_count(logical=False),
+            "logical": psutil.cpu_count(),
+            "freq_mhz": freq,
+            "load_avg": load,
+            "cores": list(_latest_cores),
+        },
+        "memory": {
+            "total": vm.total, "used": vm.used, "available": vm.available,
+            "cached": getattr(vm, "cached", None),
+            "swap_total": sw.total, "swap_used": sw.used,
+        },
+        "processes": {"cpu": by_cpu, "memory": by_mem},
     }
