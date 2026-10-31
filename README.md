@@ -12,7 +12,7 @@ A self-hosted web panel for monitoring a server today, and managing it as the pr
 ![Platforms](https://img.shields.io/badge/platform-Linux%20%7C%20Windows-lightgrey)
 ![Status: work in progress](https://img.shields.io/badge/status-work%20in%20progress-orange)
 
-**[Live demo: GithubPages](https://indian5000.github.io/Server-Dashboard/)** | **[Backend / API: LocalHosting](https://driveserver.taile2aed8.ts.net/app)** | **[API documentation](https://driveserver.taile2aed8.ts.net/app/docs)**
+**[Live demo: GithubPages](https://indian5000.github.io/Server-Dashboard/)** | **[Backend / API: Nest](https://syspulse.indian5000.hackclub.app)** | **[API documentation](https://syspulse.indian5000.hackclub.app/docs)**
 
 </div>
 
@@ -45,7 +45,7 @@ A self-hosted web panel for monitoring a server today, and managing it as the pr
 | Resource | Link |
 |---|---|
 | Live demo | **[https://indian5000.github.io/Server-Dashboard/](https://indian5000.github.io/Server-Dashboard/)** |
-| Backend / API | **[https://driveserver.taile2aed8.ts.net/app](https://driveserver.taile2aed8.ts.net/app)** (interactive documentation at `/docs`) |
+| Backend / API | **[https://syspulse.indian5000.hackclub.app](https://syspulse.indian5000.hackclub.app)** (interactive documentation at `/docs`) |
 | Source code | [github.com/Indian5000/Server-Dashboard](https://github.com/Indian5000/Server-Dashboard) |
 
 ### Demo accounts
@@ -450,8 +450,8 @@ Because the frontend and backend share one address, add the following line to `f
 
 ## Backend and API
 
-**Backend:** [https://driveserver.taile2aed8.ts.net/app](https://driveserver.taile2aed8.ts.net/app)
-**Interactive documentation:** `https://driveserver.taile2aed8.ts.net/app/docs`
+**Backend:** [https://syspulse.indian5000.hackclub.app](https://syspulse.indian5000.hackclub.app)
+**Interactive documentation:** `https://syspulse.indian5000.hackclub.app/docs`
 
 To try the protected endpoints in the interactive documentation:
 

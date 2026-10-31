@@ -18,7 +18,7 @@ jobs:
 
       - name: Inject Production API URL
         run: |
-          sed -i 's|http://localhost:8000|https://driveserver.taile2aed8.ts.net/app|g' frontend/auth.js
+          sed -i 's|http://localhost:8000|https://syspulse.indian5000.hackclub.app|g' frontend/auth.js
 
       - name: Inject Demo Credentials Box
         run: |
