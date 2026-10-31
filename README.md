@@ -93,7 +93,6 @@ account and sends no data to external services.
 
 ## Screenshots
 
-*Place screenshots in `docs/images/` using the file names below and they will be displayed here.*
 
 ### Dashboard overview
 ![Dashboard overview](docs/images/dashboard-overview.png)
