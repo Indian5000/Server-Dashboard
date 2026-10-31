@@ -17,7 +17,8 @@ A self-hosted web panel for monitoring a server today, and managing it as the pr
 </div>
 
 ---
-
+> [!WARNING]
+> **Warning:** Side menu buttons SSH terminal, Log review and File manager don't work! Only buttons exist, there is no logic or page for them yet.
 ## Table of Contents
 
 1. [Demo and Credentials](#demo-and-credentials)
